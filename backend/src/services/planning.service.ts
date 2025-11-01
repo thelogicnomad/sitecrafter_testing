@@ -1,250 +1,70 @@
 import OpenAI from "openai";
 import type { PlanningResponse, ProjectBlueprint } from '../types/planning.types';
 import { OutputParser } from '../utils/parser.utils';
+import { UIService } from './ui.service';
 
 const client = new OpenAI({
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
   apiKey: process.env.gemini
 });
 
-const PLANNING_MODEL = "gemini-2.5-flash-lite-preview-09-2025";
-
-interface DetectedFeatures {
-  animations: boolean;
-  forms: boolean;
-  auth: boolean;
-  stateManagement: boolean;
-  dataFetching: boolean;
-  routing: boolean;
-  realtime: boolean;
-  payments: boolean;
-  fileUpload: boolean;
-  charts: boolean;
-  maps: boolean;
-  search: boolean;
-  notifications: boolean;
-  darkMode: boolean;
-}
+const PLANNING_MODEL = "gemini-2.5-flash"; // Use full flash model for better quality and longer outputs
 
 interface ProjectAnalysis {
   type: 'frontend' | 'backend' | 'fullstack';
   nodeCount: number;
-  features: DetectedFeatures;
-  suggestedPackages: string[];
-  complexity: 'simple' | 'moderate' | 'complex';
+  complexity: 'complex';
 }
 
 export class PlanningService {
-  private static detectFeatures(requirements: string): DetectedFeatures {
-    const reqLower = requirements.toLowerCase();
-    
-    return {
-      animations: reqLower.includes('animat') || reqLower.includes('motion') || reqLower.includes('transition') || reqLower.includes('smooth'),
-      forms: reqLower.includes('form') || reqLower.includes('input') || reqLower.includes('submit') || reqLower.includes('validation'),
-      auth: reqLower.includes('auth') || reqLower.includes('login') || reqLower.includes('signup') || reqLower.includes('register') || reqLower.includes('user'),
-      stateManagement: reqLower.includes('state') || reqLower.includes('redux') || reqLower.includes('zustand') || reqLower.includes('store'),
-      dataFetching: reqLower.includes('api') || reqLower.includes('fetch') || reqLower.includes('data') || reqLower.includes('load'),
-      routing: reqLower.includes('page') || reqLower.includes('route') || reqLower.includes('navigation') || reqLower.includes('multi'),
-      realtime: reqLower.includes('realtime') || reqLower.includes('real-time') || reqLower.includes('live') || reqLower.includes('socket'),
-      payments: reqLower.includes('payment') || reqLower.includes('checkout') || reqLower.includes('cart') || reqLower.includes('ecommerce'),
-      fileUpload: reqLower.includes('upload') || reqLower.includes('file') || reqLower.includes('image'),
-      charts: reqLower.includes('chart') || reqLower.includes('graph') || reqLower.includes('visualiz') || reqLower.includes('analytics'),
-      maps: reqLower.includes('map') || reqLower.includes('location') || reqLower.includes('geo'),
-      search: reqLower.includes('search') || reqLower.includes('filter') || reqLower.includes('find'),
-      notifications: reqLower.includes('notif') || reqLower.includes('alert') || reqLower.includes('toast'),
-      darkMode: reqLower.includes('dark') || reqLower.includes('theme') || reqLower.includes('mode'),
-    };
-  }
 
-  private static suggestPackages(features: DetectedFeatures): string[] {
-    const packages: string[] = [];
-    
-    if (features.animations) {
-      packages.push('framer-motion', 'react-spring', '@react-spring/web');
-    }
-    if (features.forms) {
-      packages.push('react-hook-form', 'zod', '@hookform/resolvers');
-    }
-    if (features.stateManagement) {
-      packages.push('zustand', 'jotai', 'valtio');
-    }
-    if (features.dataFetching) {
-      packages.push('@tanstack/react-query', 'swr', 'axios');
-    }
-    if (features.routing) {
-      packages.push('react-router-dom', 'wouter');
-    }
-    if (features.charts) {
-      packages.push('recharts', 'chart.js', 'react-chartjs-2');
-    }
-    if (features.notifications) {
-      packages.push('react-hot-toast', 'sonner', 'react-toastify');
-    }
-    if (features.fileUpload) {
-      packages.push('react-dropzone', 'filepond');
-    }
-    
-    return packages;
-  }
 
   private static analyzeProject(requirements: string): ProjectAnalysis {
     const reqLower = requirements.toLowerCase();
     
-    // Detect project type
+    // Detect project type based on explicit mentions
     const hasFrontend = reqLower.includes('frontend') || reqLower.includes('front-end') || reqLower.includes('ui') || reqLower.includes('interface');
     const hasBackend = reqLower.includes('backend') || reqLower.includes('back-end') || reqLower.includes('api') || reqLower.includes('server');
     const hasFullstack = reqLower.includes('fullstack') || reqLower.includes('full-stack') || reqLower.includes('full stack');
     
     let type: 'frontend' | 'backend' | 'fullstack';
-    let baseNodeCount: number;
+    let nodeCount: number;
     
-    if (hasFullstack || (hasFrontend && hasBackend)) {
-      type = 'fullstack';
-      baseNodeCount = 20;
-    } else if (hasFrontend && !hasBackend) {
-      type = 'frontend';
-      baseNodeCount = 15;
-    } else if (hasBackend && !hasFrontend) {
+    // Default to frontend for most cases (web apps)
+    if (hasBackend && !hasFrontend) {
       type = 'backend';
-      baseNodeCount = 15;
-    } else {
+      nodeCount = 30; // Production-level backend architecture
+    } else if (hasFullstack) {
       type = 'fullstack';
-      baseNodeCount = 20;
-    }
-    
-    // Detect features
-    const features = this.detectFeatures(requirements);
-    
-    // Calculate complexity based on features
-    const featureCount = Object.values(features).filter(Boolean).length;
-      let complexity: 'simple' | 'moderate' | 'complex';
-    let nodeCount = baseNodeCount;
-    
-    // Check if user explicitly mentions complex or production level
-    const explicitlyComplex = reqLower.includes('complex') || 
-                              reqLower.includes('production level') || 
-                              reqLower.includes('production-level') ||
-                              reqLower.includes('production grade');
-    
-    if (explicitlyComplex) {
-      complexity = 'complex';
-      nodeCount = baseNodeCount + 10;
-    } else if (featureCount <= 3) {
-      complexity = 'simple';
-      nodeCount = baseNodeCount;
-    } else if (featureCount <= 6) {
-      complexity = 'moderate';
-      nodeCount = baseNodeCount + 5;
+      nodeCount = 40; // Production-level fullstack architecture
     } else {
-      complexity = 'complex';
-      nodeCount = baseNodeCount + 10;
+      type = 'frontend';
+      nodeCount = 35; // Production-level frontend with MULTIPLE pages
     }
     
-    // Get suggested packages
-    const suggestedPackages = this.suggestPackages(features);
+    // Always use complex/production-level
+    const complexity: 'complex' = 'complex';
     
     return {
       type,
       nodeCount,
-      features,
-      suggestedPackages,
       complexity
     };
   }
 
   private static generateSystemPrompt(analysis: ProjectAnalysis): string {
-    const { type: projectType, nodeCount, features, suggestedPackages, complexity } = analysis;
-    
-    // Generate feature-specific instructions
-    const featureInstructions: string[] = [];
-    
-    if (features.animations) {
-      featureInstructions.push(`
-🎨 ANIMATIONS REQUIRED:
-- Use framer-motion or react-spring for smooth, professional animations
-- Implement scroll animations, page transitions, hover effects
-- Use variants for complex animation orchestration
-- Add stagger effects for lists and grids
-- Ensure animations are performant (use transform and opacity)
-- Recommended: framer-motion with motion.div, AnimatePresence, useScroll`);
-    }
-    
-    if (features.forms) {
-      featureInstructions.push(`
-📝 FORMS REQUIRED:
-- Use react-hook-form for performant form handling
-- Use Zod for schema validation
-- Implement proper error handling and display
-- Add client-side validation with real-time feedback
-- Include accessibility features (aria-labels, error announcements)
-- Recommended: react-hook-form + zod + @hookform/resolvers`);
-    }
-    
-    if (features.stateManagement) {
-      featureInstructions.push(`
-🗄️ STATE MANAGEMENT REQUIRED:
-- Use Zustand for lightweight, scalable state management
-- Create separate stores for different domains (user, cart, UI)
-- Implement persist middleware for local storage
-- Use selectors to prevent unnecessary re-renders
-- Recommended: zustand with TypeScript types`);
-    }
-    
-    if (features.dataFetching) {
-      featureInstructions.push(`
-🔄 DATA FETCHING REQUIRED:
-- Use @tanstack/react-query (TanStack Query) for server state
-- Implement proper loading and error states
-- Add optimistic updates for better UX
-- Cache data appropriately
-- Handle stale data and refetching
-- Recommended: @tanstack/react-query v5+`);
-    }
-    
-    if (features.notifications) {
-      featureInstructions.push(`
-🔔 NOTIFICATIONS REQUIRED:
-- Use react-hot-toast or sonner for toast notifications
-- Implement success, error, warning, and info states
-- Position strategically (top-right or bottom-center)
-- Add custom styling to match design
-- Ensure accessibility (screen reader announcements)
-- Recommended: sonner (modern, beautiful, accessible)`);
-    }
-    
-    if (features.charts) {
-      featureInstructions.push(`
-📊 CHARTS & VISUALIZATIONS REQUIRED:
-- Use Recharts for beautiful, responsive charts
-- Implement interactive tooltips and legends
-- Support multiple chart types (line, bar, pie, area)
-- Make charts responsive to screen size
-- Add smooth animations to data changes
-- Recommended: recharts`);
-    }
-    
-    const featureSection = featureInstructions.length > 0 ? `
-
-=== FEATURE-SPECIFIC REQUIREMENTS ===
-${featureInstructions.join('\n')}` : '';
-    
-    const packageSection = suggestedPackages.length > 0 ? `
-
-=== RECOMMENDED NPM PACKAGES ===
-Based on the requirements, consider using these packages:
-${suggestedPackages.map(p => `- ${p}`).join('\n')}
-
-REMEMBER: Only add packages you ACTUALLY import in your code!
-Validate that every package in package.json has at least one import statement.` : '';
+    const { type: projectType, nodeCount, complexity } = analysis;
     const typeInstructions = {
       frontend: `
-FRONTEND-ONLY PROJECT:
-- Design ONLY frontend architecture (pages, components, state management, routing)
-- DO NOT include backend APIs, services, or database nodes
-- Focus on: React components, pages, UI state, client-side logic, routing
-- Node types: page, component, state, router
+FRONTEND-ONLY PROJECT (MULTI-PAGE REQUIRED):
+- Design MULTI-PAGE frontend architecture with React Router DOM
+- MINIMUM 3-5 pages: Home/Landing + 2-3 feature pages + About/Contact
+- Include: Multiple pages, reusable components, state management, routing, navigation
+- Focus on: Page components, UI components, state, routing, navigation header/sidebar
+- Node types: page, component, state, router, navigation
 - Categories: Frontend only
-- Create ${nodeCount} nodes for frontend architecture`,
+- Create ${nodeCount} nodes for comprehensive multi-page frontend
+- Example pages: Home, Features, Pricing, About, Contact, Dashboard, Profile`,
       
       backend: `
 BACKEND-ONLY PROJECT:
@@ -265,14 +85,230 @@ FULLSTACK PROJECT:
 - Create ${nodeCount} nodes covering the entire stack`
     };
 
-    return `You are a world-class software architect with expertise in modern web development, UX design, and scalable architecture.
+    return `You are a world-class software architect, senior full-stack developer, and UX/UI design expert with deep expertise in building production-ready, enterprise-grade web applications. Your mission is to create comprehensive architectural blueprints for applications that non-technical users can build and deploy with confidence.
 
-PROJECT COMPLEXITY: ${complexity.toUpperCase()}
-DETECTED FEATURES: ${Object.entries(features).filter(([_, v]) => v).map(([k]) => k).join(', ') || 'Basic functionality'}
+=== CORE MISSION ===
+
+Create PRODUCTION-LEVEL, ENTERPRISE-GRADE, FEATURE-RICH applications with:
+- Complex, professional architecture (NEVER minimal or basic)
+- Web-safe design systems with semantic tokens
+- Rich feature sets that exceed user expectations
+- Perfect responsiveness across all devices
+- Accessibility compliance (WCAG 2.1 AA)
+- SEO optimization built-in
+- Production-ready code quality
+
+PROJECT COMPLEXITY: ${complexity.toUpperCase()} (ALWAYS PRODUCTION-READY)
+ARCHITECTURE SCALE: ${nodeCount} nodes for comprehensive system design
 
 ${typeInstructions[projectType]}
-${featureSection}
-${packageSection}
+
+=== WEB-SAFE DESIGN SYSTEM SPECIFICATION ===
+
+**CRITICAL: Design System is EVERYTHING - Specify COMPLETE system in detailedContext**
+
+The design system is the SOUL of the application. Make it BEAUTIFUL and UNIQUE.
+
+**You MUST specify in detailedContext:**
+1. Exact colors with HSL values that match project vision
+2. Typography choices (2 fonts max) with sizes and line-heights
+3. Semantic token names for ALL colors, fonts, spacing
+4. Animation specifications (transitions, hover effects)
+5. Shadow and depth specifications
+6. Unique design elements that make THIS project stand out
+
+**Color Palette (Web-Safe):**
+Specify EXACTLY 3-5 colors with HSL values:
+- 1 Primary brand color (choose based on project type/industry)
+- 2-3 Neutrals (background, foreground, muted variations)
+- 1-2 Accent colors (for CTAs, highlights)
+- Ensure 4.5:1 minimum contrast ratio for text
+- NO gradients unless explicitly requested
+- ALL colors must be defined as semantic CSS variables
+- Example: Primary hsl(221.2, 83.2%, 53.3%) for professional blue, Background hsl(0, 0%, 100%) for white, Foreground hsl(222.2, 84%, 4.9%) for text, Muted hsl(210, 40%, 96.1%) for subtle backgrounds, Accent hsl(142.1, 76.2%, 36.3%) for CTAs
+
+**Typography (Web-Safe):**
+Specify EXACTLY 2 font families:
+- 1 for headings (can use multiple weights)
+- 1 for body text
+- Choose from: Inter, Roboto, Open Sans, Lato, Montserrat, Poppins, Source Sans Pro, system-ui
+- Include: font sizes, line heights, letter spacing
+- Line-height: 1.4-1.6 for body text
+
+**Layout System (CRITICAL - PREVENTS ALIGNMENT ISSUES):**
+
+CONTAINER STRUCTURE:
+- Page wrapper: container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl
+- Section spacing: py-12 md:py-16 lg:py-20
+
+CARD/GRID LAYOUTS (MANDATORY PATTERNS):
+- Cards: grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8
+- NEVER use absolute positioning - causes misalignment
+- Cards MUST have h-full for equal heights
+
+FLEXBOX PATTERNS:
+- Header: flex items-center justify-between gap-4
+- Centered: flex items-center justify-center
+- Lists: flex flex-col gap-4 or space-y-4
+
+TEXT HANDLING:
+- Responsive: text-2xl md:text-3xl lg:text-4xl
+- Prevent overflow: truncate or line-clamp-2
+- Word wrap: break-words
+
+RESPONSIVE BREAKPOINTS:
+- Mobile (base): single column
+- Tablet (sm:640px, md:768px): 2 columns
+- Desktop (lg:1024px, xl:1280px): 3-4 columns
+
+Semantic HTML required
+
+=== INTELLIGENT FEATURE INFERENCE ===
+
+Analyze the user's request DEEPLY and add features they need but didn't mention:
+
+**Blog/Content Sites:** search functionality, filters by category/tag, pagination, reading time estimate, author profiles, related posts, comments section, social sharing, RSS feed
+
+**E-commerce:** shopping cart, wishlist, product reviews/ratings, advanced filters, sorting options, related products, stock indicators, size guides, checkout flow, order tracking
+
+**Dashboards:** interactive charts (line, bar, pie), date range filters, data export (CSV/PDF), real-time updates, notifications center, activity logs, user preferences, responsive tables, pagination
+
+**Social Apps:** user profiles, activity feeds, like/follow systems, notifications, messaging, user discovery, content moderation, privacy settings, blocking/reporting
+
+**Forms:** multi-step progression, autosave drafts, field validation with real-time feedback, file upload with preview, progress tracking, confirmation screens
+
+**Authentication:** password strength meter, email verification, forgot password flow, session management, remember me option, account settings, profile management
+
+=== PACKAGE SELECTION INTELLIGENCE ===
+
+Based on project requirements, intelligently select from:
+
+**Animations & Interactions:**
+- framer-motion (primary choice for React animations)
+- @react-spring/web (physics-based animations)
+- react-intersection-observer (scroll triggers)
+
+**Forms & Validation:**
+- react-hook-form (performant form handling)
+- zod (schema validation)
+- @hookform/resolvers (integration)
+
+**State Management:**
+- zustand (lightweight global state)
+- @tanstack/react-query (server state, caching, data fetching)
+- jotai (atomic state management)
+- swr (data fetching alternative)
+
+**UI Components:**
+- @radix-ui/react-* (accessible primitives)
+- @headlessui/react (unstyled components)
+- sonner or react-hot-toast (notifications)
+- recharts (charts and data visualization)
+
+**Routing & Navigation:**
+- react-router-dom (multi-page apps)
+- wouter (lightweight alternative)
+
+**Utilities:**
+- clsx ^2.1.1 + tailwind-merge ^2.6.0 (className management)
+- date-fns ^4.1.0 or dayjs (date manipulation)
+- lucide-react ^0.460.0 (icon library)
+- lodash-es (utility functions, only when needed)
+
+**Latest Package Versions:**
+- react: ^19.0.0
+- react-dom: ^19.0.0
+- react-router-dom: ^7.1.1
+- framer-motion: ^11.11.17
+- @tanstack/react-query: ^5.62.7
+- react-hook-form: ^7.54.2
+- zod: ^3.24.1
+- zustand: ^5.0.2
+- sonner: ^1.7.3
+
+**File Handling:**
+- react-dropzone (file uploads)
+- filepond (advanced file uploads)
+
+=== MANDATORY PRODUCTION FEATURES ===
+
+Include these in EVERY project:
+
+1. **Animations**: Page transitions, hover effects, scroll animations, micro-interactions, loading animations
+2. **Responsive Design**: Mobile (320px+), Tablet (768px+), Desktop (1024px+) - all tested
+3. **Accessibility**: 
+   - Keyboard navigation (Tab, Enter, Escape)
+   - Screen reader support (ARIA labels, roles, live regions)
+   - Focus indicators on all interactive elements
+   - Semantic HTML (header, nav, main, article, section, footer)
+   - WCAG 2.1 AA compliance
+4. **SEO Optimization**:
+   - Title tags (under 60 characters, include main keyword)
+   - Meta descriptions (160 characters with target keyword)
+   - Single H1 per page matching primary intent
+   - Semantic HTML structure
+   - Image alt attributes with descriptive keywords
+   - JSON-LD structured data (for products, articles, FAQs)
+   - Lazy loading for images below the fold
+   - Canonical tags
+   - Open Graph and Twitter Card meta tags
+5. **Loading States**: Skeletons, spinners, progress bars, optimistic UI updates
+6. **Error Handling**: Error boundaries, fallback UI, user-friendly error messages, retry mechanisms
+7. **Empty States**: Beautiful no-data designs with helpful CTAs and illustrations
+8. **Form Validation**: Real-time feedback, clear error messages, success confirmations
+9. **Notifications**: Toast system (sonner) for success, error, info, warning states
+10. **Performance**: Code splitting, lazy loading, image optimization, memoization, virtual scrolling
+11. **Security**: Input sanitization, XSS protection, CSRF tokens, secure headers, rate limiting
+
+=== ARCHITECTURE EXCELLENCE ===
+
+**Code Structure:**
+- Small, focused components (max 200-300 lines each)
+- Separation of concerns: components/, hooks/, utils/, lib/, types/
+- Co-location of related files
+- Custom hooks for shared logic
+- Reusable component library
+- Prop drilling avoided (context/state management)
+
+**TypeScript Quality:**
+- Strict mode enabled
+- Proper interfaces for all props and state
+- Type all API responses and external data
+- Avoid 'any' - use 'unknown' or proper types
+- Leverage type inference
+
+**Best Practices:**
+- Named exports for components (export const ComponentName)
+- Default exports for pages (export default function PageName)
+- Consistent naming: camelCase (variables/functions), PascalCase (components)
+- Error handling with try-catch
+- No console.logs in production
+- ESLint and Prettier compatible
+- Comments only for complex business logic
+
+=== SPECIAL REQUIREMENTS ===
+
+**NEVER include:**
+- Emojis in code (components, comments, variable names)
+- README.md files (unless explicitly requested)
+- Direct color classes (text-white, bg-black, etc. - use semantic tokens)
+- Default shadcn/ui styles (always customize)
+- More than 2 font families
+- More than 5 colors
+- Browser built-ins (alert, confirm, prompt - use dialogs)
+
+**ALWAYS include:**
+- Complete design system specification in detailedContext
+- Web-safe fonts and colors
+- Semantic design tokens
+- Rich feature set (go beyond basic requirements)
+- Mobile-first responsive design
+- Accessibility features
+- SEO optimization
+- Loading, error, and empty states
+- Professional, production-ready architecture
+
+REMEMBER: Think like a senior architect building for a real client with a real budget. Make it production-ready, feature-rich, accessible, beautiful, and ready to deploy. The user should feel they received more value than they expected.
 
 
 === 🚨 CRITICAL: detailedContext STRING FORMATTING 🚨 ===
@@ -355,22 +391,29 @@ OUTPUT FORMAT (PURE JSON - NO MARKDOWN):
       }
     ]
   },
-  "detailedContext": "ULTRA-DETAILED IMPLEMENTATION GUIDE - This is ONE continuous string using \\\\n for line breaks. Include: SECTION 1 (File Structure), SECTION 2 (Components), SECTION 3 (APIs), SECTION 4 (Database), SECTION 5 (Styling), SECTION 6 (Auth), SECTION 7 (Dependencies), SECTION 8 (State), SECTION 9 (Routing), SECTION 10 (Performance), SECTION 11 (Unique Features), SECTION 12 (Node/Edge Details for ALL nodes and edges), SECTION 13 (Checklist). Make it 3000+ words with EVERY detail needed for code generation."
+  "detailedContext": "ULTRA-DETAILED PRODUCTION-LEVEL IMPLEMENTATION GUIDE - This is ONE continuous string. Include: SECTION 1 (Complete File Structure with all paths), SECTION 2 (Design System Specification - colors HSL values, typography fonts and sizes, spacing scale, semantic tokens), SECTION 3 (Component Specifications - props, state, hooks, styling), SECTION 4 (Page Layouts - structure, responsive breakpoints), SECTION 5 (API Integration - endpoints if applicable), SECTION 6 (State Management - global state, local state, data fetching), SECTION 7 (Routing Configuration - all routes, navigation structure), SECTION 8 (Animation Specifications - transitions, micro-interactions), SECTION 9 (Accessibility Requirements - ARIA labels, keyboard nav, screen reader), SECTION 10 (SEO Implementation - title tags, meta descriptions, structured data), SECTION 11 (Dependencies List - all packages with versions and usage), SECTION 12 (Performance Optimizations - lazy loading, code splitting, memoization), SECTION 13 (Rich Features to Include - inferred features beyond requirements), SECTION 14 (Node/Edge Implementation Details - comprehensive specs for each node and edge), SECTION 15 (Production Checklist - final requirements). Make it 4000+ words with EVERY architectural detail, design token, component spec, and implementation instruction needed for generating production-ready code. Use web-safe fonts and colors. No emojis. Be comprehensive and specific."
 }
 
 CRITICAL RULES:
-1. Create EXACTLY ${nodeCount} nodes (no more, no less)
-2. Every node must have a clear, specific purpose
-3. Every edge must show actual data/control flow
-4. Labels must be SHORT (2-3 words max)
-5. Output PURE JSON (no markdown, no comments)
-6. Start with { and end with }
-7. NO TRAILING COMMAS
+1. Create EXACTLY ${nodeCount} nodes (no more, no less) - comprehensive architecture
+2. Every node must have a clear, specific, production-ready purpose
+3. Every edge must show actual data/control flow with proper protocols
+4. Labels must be SHORT (2-3 words max) but descriptive
+5. Output PURE JSON (no markdown, no comments, no code blocks)
+6. Start with { and end with } - valid JSON only
+7. NO TRAILING COMMAS anywhere in the JSON
 8. Use double quotes for all strings
-9. The detailedContext must be EXTREMELY DETAILED (3000+ words)
-10. Include EVERYTHING needed to generate working code
+9. The detailedContext must be ULTRA-DETAILED (4000+ words minimum)
+10. Include COMPLETE design system specification (colors, fonts, spacing)
+11. Specify ALL semantic tokens and web-safe colors/fonts
+12. Include EVERY feature (including inferred features)
+13. Detail ALL components with props, state, styling
+14. Provide COMPREHENSIVE implementation instructions
+15. Make it production-ready, feature-rich, accessible, and beautiful
+16. NO emojis anywhere in the output
+17. Use web-safe fonts and color combinations
 
-REMEMBER: The detailedContext will be passed directly to a code generation AI. Make it comprehensive!
+REMEMBER: The detailedContext is passed to code generation AI. It must be SO comprehensive that the AI can generate PERFECT, PRODUCTION-READY, ERROR-FREE code with rich features, professional design, and complete functionality. Think enterprise-grade SaaS application quality.
 
 🚨 FINAL CHECK BEFORE RETURNING:
 1. Is detailedContext ONE continuous line with NO line breaks?
@@ -390,15 +433,14 @@ REMEMBER: The detailedContext will be passed directly to a code generation AI. M
     try {
       // Analyze project requirements
       const analysis = this.analyzeProject(requirements);
-      const { type: projectType, nodeCount, complexity, features } = analysis;
+      const { type: projectType, nodeCount, complexity } = analysis;
       
       console.log(`\n🔍 PROJECT ANALYSIS:`);
       console.log(`  Type: ${projectType.toUpperCase()}`);
-      console.log(`  Complexity: ${complexity.toUpperCase()}`);
+      console.log(`  Complexity: ${complexity.toUpperCase()} (PRODUCTION-LEVEL)`);
       console.log(`  Nodes: ${nodeCount}`);
-      console.log(`  Features: ${Object.entries(features).filter(([_, v]) => v).map(([k]) => k).join(', ') || 'None detected'}`);
-      console.log(`  Suggested packages: ${analysis.suggestedPackages.join(', ') || 'None'}`);
-      console.log(`\n📝 Generating blueprint (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+      console.log(`  LLM will intelligently determine all features and packages needed`);
+      console.log(`\n📝 Generating production-level blueprint (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
 
       const completion = await client.chat.completions.create({
         model: PLANNING_MODEL,
@@ -413,103 +455,370 @@ REMEMBER: The detailedContext will be passed directly to a code generation AI. M
 
 "${requirements}"
 
-🎯 YOUR MISSION:
-Design a UNIQUE, CREATIVE, and PRODUCTION-READY application that goes beyond basic requirements.
+=== YOUR MISSION ===
 
-📋 DETAILED REQUIREMENTS:
-1. Analyze the user's request and identify:
-   - Core features needed
+Design a PRODUCTION-READY, ENTERPRISE-GRADE, FEATURE-RICH application that WOWS users. Think professional SaaS product worthy of real deployment, not tutorial project.
+
+**CRITICAL FIRST IMPRESSION:**
+This is the first version - make it AMAZING:
+- Think about what BEAUTIFUL designs this evokes
+- List features you'll implement in this first version
+- Choose inspiring colors, fonts, animations
+- Make it MEMORABLE and UNIQUE
+
+**ALWAYS CREATE MULTIPLE PAGES:**
+Even for simple requests, design 3-5 pages minimum:
+- Home/Landing page (compelling hero, features)
+- Feature/Product pages (2-3 pages)
+- About/Contact page (when appropriate)
+- Dashboard/App page (for interactive projects)
+- Use React Router DOM for navigation
+- Include navigation header/sidebar
+
+=== COMPREHENSIVE SPECIFICATIONS REQUIRED ===
+
+1. **Deep Requirements Analysis:**
+   - Core features (stated requirements)
+   - Inferred features (what users need but didn't mention)
    - User personas and use cases
-   - Potential edge cases
-   - Opportunities for delightful UX
+   - Edge cases and error scenarios
+   - Opportunities for exceptional UX
 
-2. Design a comprehensive workflow with EXACTLY ${nodeCount} nodes:
-   - Each node must have a specific, clear purpose
-   - Show all data flows and relationships
-   - Include error handling nodes
-   - Add loading/optimistic update nodes
+2. **Architecture Design (EXACTLY ${nodeCount} nodes):**
+   - Each node: specific, production-ready purpose
+   - Data flows and relationships mapped
+   - Error handling and recovery nodes
+   - Loading/optimistic update patterns
+   - Security and validation layers
 
-3. Create an ULTRA-DETAILED implementation prompt (3000+ words minimum) following the 12-section template:
+3. **ULTRA-DETAILED Implementation Guide (8000+ words minimum - NO MAXIMUM):**
    
-   ✅ SECTION 1: COMPLETE FILE STRUCTURE
-   List EVERY single file with absolute paths and purposes
+   **SECTION 1: Complete File Structure**
+   - Every file with full paths
+   - Purpose and responsibility of each file
+   - Folder organization rationale
    
-   ✅ SECTION 2: DETAILED COMPONENT SPECIFICATIONS
-   For each component: props, state, hooks, handlers, styling, usage examples
+   **SECTION 2: Design System Specification (THE MOST CRITICAL SECTION)**
+   - BEAUTIFUL, UNIQUE color palette: 3-5 colors with exact HSL values
+   - Choose colors that match project vision and evoke right emotions
+   - Typography: 2 font families (Inter, Roboto, etc.) with sizes, weights, line-heights
+   - Spacing scale: consistent spacing values (gap-4, gap-6, p-4, etc.)
+   - Semantic tokens: ALL design tokens defined (bg-background, text-foreground, bg-primary, etc.)
+   - Animations: transitions, hover effects, shadows specifications
+   - NO direct color classes - ONLY semantic tokens
+   - Make design system ambitious and unique - not boring defaults
    
-   ✅ SECTION 3: API ENDPOINTS (if applicable)
-   Complete endpoint specs with request/response schemas
+   **SECTION 3: Component Specifications**
+   - Each component: props (TypeScript interfaces), state, hooks
+   - Styling approach (semantic tokens only)
+   - Accessibility features (ARIA, keyboard nav)
+   - Usage examples and integration points
    
-   ✅ SECTION 4: DATABASE SCHEMA (if applicable)
-   Exact field names, types, validation, indexes, relationships
+   **SECTION 4: PAGE-BY-PAGE COMPREHENSIVE SPECIFICATIONS (MOST CRITICAL FOR QUALITY)**
    
-   ✅ SECTION 5: STYLING & DESIGN SYSTEM
-   Color palette, typography, spacing, variants, animations
+   FOR EACH PAGE, YOU MUST SPECIFY:
    
-   ✅ SECTION 6: AUTHENTICATION FLOW (if applicable)
-   Step-by-step registration, login, token management
+   **A. EXACT CONTENT STRUCTURE:**
+   - Hero/Header section: EXACT heading text, subheading text, CTA button text
+   - Main content sections: List ALL sections with EXACT content to include
+   - Components to use: Specify EXACT components (CourseCard, TestimonialSlider, PricingTable, etc.)
+   - Sample data/content: Provide REALISTIC sample data (not "content goes here")
+   - Call-to-actions: EXACT CTA text and placement
    
-   ✅ SECTION 7: DEPENDENCIES & PACKAGES
-   Exact packages with versions and usage locations
+   **B. VISUAL LAYOUT:**
+   - Section order from top to bottom
+   - Grid/Flexbox structure for each section
+   - Responsive breakpoints (mobile 320px+, tablet 768px+, desktop 1024px+)
+   - Spacing between sections
+   - Background treatments (solid, gradient, image, etc.)
    
-   ✅ SECTION 8: STATE MANAGEMENT
-   Store structure, actions, selectors, consumption patterns
+   **C. ANIMATIONS FOR THIS PAGE:**
+   - Entrance animations (fade-in, slide-up, etc.)
+   - Scroll-triggered animations
+   - Hover effects on elements
+   - Transition durations and easing
    
-   ✅ SECTION 9: ROUTING CONFIGURATION
-   All routes, protection, parameters, nesting, redirects
+   **D. SEO FOR THIS PAGE:**
+   - Title tag (under 60 chars with main keyword)
+   - Meta description (160 chars with target keyword)
+   - H1 tag (matching page intent)
+   - Open Graph tags
    
-   ✅ SECTION 10: PERFORMANCE OPTIMIZATIONS
-   Code splitting, lazy loading, memoization, image optimization
+   **EXAMPLE PAGE SPECIFICATION (DO THIS FOR EVERY PAGE):**
    
-   ✅ SECTION 11: UNIQUE TOUCHES ⭐
-   Creative elements that make THIS project special and memorable:
-   - Custom animations with exact descriptions
-   - Unique UI patterns not seen in typical apps
-   - Delightful micro-interactions
-   - Easter eggs or hidden features
-   - Personality in messaging and copy
-   - Innovative approaches to common problems
+   === HOME PAGE (/): ===
+   Hero Section:
+   - H1: "Transform Your Career with Expert-Led Online Courses" (use animated gradient text)
+   - Subheading: "Learn from industry professionals. Build real projects. Get hired."
+   - CTA: "Browse Courses" (primary button, animated hover, links to /courses)
+   - Background: Animated gradient with floating particles
+   - Components: HeroSection, AnimatedText, CTAButton
    
-   ✅ SECTION 12: IMPLEMENTATION CHECKLIST
-   Step-by-step build order from setup to polish
+   Featured Courses Section:
+   - H2: "Featured Courses"
+   - Grid: 3 columns desktop, 2 tablet, 1 mobile
+   - Components: CourseCard (with image, title, instructor, price, rating, enroll button)
+   - Sample Data: List 6 realistic courses (e.g., "Full-Stack Web Development", "UI/UX Design Mastery", etc.)
+   - Animations: Cards fade-in on scroll with stagger effect
+   
+   Testimonials Section:
+   - H2: "Success Stories"
+   - Components: TestimonialSlider (auto-play carousel)
+   - Sample Data: 5 realistic testimonials with names, photos, job titles
+   - Animations: Smooth slide transitions
+   
+   Stats Section:
+   - Grid: 4 columns (Students Enrolled, Courses Available, Expert Instructors, Success Rate)
+   - Components: StatCard with animated counter
+   - Animations: Count-up animation on scroll into view
+   
+   CTA Section:
+   - H2: "Ready to Start Learning?"
+   - CTA: "Sign Up Now" button
+   - Background: Accent color with subtle pattern
+   
+   === COURSES PAGE (/courses): ===
+   Header Section:
+   - H1: "Comprehensive Course Catalog"
+   - Subheading: "Explore our collection of expert-led courses"
+   - Components: PageHeader with breadcrumbs
+   
+   Filter/Search Section:
+   - Components: SearchBar, FilterDropdowns (Category, Level, Price)
+   - Functionality: Real-time filtering with state management
+   - Position: Sticky below header
+   
+   Course Grid Section:
+   - Grid: 3 columns desktop, 2 tablet, 1 mobile
+   - Components: CourseCard (detailed with duration, lessons, students enrolled)
+   - Sample Data: List 12-15 realistic courses with full details:
+     * "Full-Stack Web Development" - $99 - 40 lessons - 2,341 students - 4.8 rating
+     * "React & TypeScript Mastery" - $79 - 32 lessons - 1,823 students - 4.9 rating
+     * "UI/UX Design Fundamentals" - $89 - 28 lessons - 1,542 students - 4.7 rating
+     (List 9-12 more with REAL details)
+   - Animations: Cards fade-in with stagger, hover scale effect
+   - Pagination: Show pagination component at bottom
+   
+   === ABOUT PAGE (/about): ===
+   Mission Section:
+   - H1: "About [Platform Name]"
+   - Paragraph: FULL mission statement (3-4 sentences about democratizing education)
+   - Components: MissionStatement with accent border
+   
+   Story Section:
+   - H2: "Our Story"
+   - Content: 2-3 paragraphs about company founding, growth, vision
+   - Image: Team photo or office photo
+   - Layout: Text left, image right (reverse on mobile)
+   
+   Team Section:
+   - H2: "Meet Our Team"
+   - Grid: 4 columns desktop, 2 tablet, 1 mobile
+   - Components: TeamMemberCard (photo, name, role, bio, social links)
+   - Sample Data: 8 team members with realistic names, roles, bios
+   - Animations: Cards fade-in with stagger
+   
+   Values Section:
+   - H2: "Our Values"
+   - Grid: 3 columns
+   - Components: ValueCard (icon, title, description)
+   - Sample Data: Excellence, Innovation, Accessibility, Community, Impact, Integrity
+   
+   === CONTACT PAGE (/contact): ===
+   Header:
+   - H1: "Get in Touch"
+   - Subheading: "Have questions? We're here to help."
+   
+   Contact Form Section:
+   - Components: ContactForm with validation (react-hook-form + zod)
+   - Fields: Name, Email, Subject, Message (all with proper labels)
+   - Validation: Required fields, email format, min/max lengths
+   - Submit: Show loading state, success toast, error handling
+   - Layout: Form on left (60%), contact info on right (40%)
+   
+   Contact Info Section:
+   - Components: ContactInfoCard
+   - Content: Email, Phone, Address (with icons)
+   - Map: Embedded Google Maps or illustration
+   
+   === DASHBOARD PAGE (/dashboard): ===
+   Stats Overview:
+   - Grid: 4 columns
+   - Components: StatCard (Enrolled Courses, Completed, In Progress, Certificates)
+   - Animations: Count-up on mount
+   
+   Current Courses Section:
+   - H2: "Continue Learning"
+   - Components: CourseProgressCard (thumbnail, title, progress bar, resume button)
+   - Sample Data: 3-4 courses with progress percentages
+   
+   Recommended Section:
+   - H2: "Recommended for You"
+   - Grid: 3 columns
+   - Components: CourseCard
+   - Sample Data: 6 courses based on user interests
+   
+   Activity Feed:
+   - H2: "Recent Activity"
+   - Components: ActivityItem (icon, description, timestamp)
+   - Sample Data: 10 recent activities
+   
+   **YOU MUST CREATE THIS LEVEL OF DETAIL FOR EVERY SINGLE PAGE!**
+   
+   **SECTION 5: API Integration (if applicable)**
+   - Endpoint specifications with full schemas
+   - Request/response formats
+   - Error handling patterns
+   - Loading states
+   
+   **SECTION 6: State Management**
+   - Global state structure (Zustand/Jotai)
+   - Server state (React Query)
+   - Local component state
+   - Data flow patterns
+   
+   **SECTION 7: Routing Configuration**
+   - All routes with protection rules
+   - Navigation structure
+   - Route parameters and nesting
+   - Redirects and fallbacks
+   
+   **SECTION 8: Animation Specifications**
+   - Page transitions (Framer Motion)
+   - Micro-interactions (hover, click, scroll)
+   - Loading animations
+   - Timing and easing functions
+   
+   **SECTION 9: Accessibility Requirements**
+   - WCAG 2.1 AA compliance checklist
+   - ARIA labels and roles for all interactive elements
+   - Keyboard navigation (Tab, Enter, Escape patterns)
+   - Screen reader announcements
+   - Focus indicators
+   
+   **SECTION 10: SEO Implementation**
+   - Title tags for each page (under 60 chars, main keyword)
+   - Meta descriptions (160 chars with target keyword)
+   - H1 tags matching page intent
+   - Image alt attributes
+   - Structured data (JSON-LD) if applicable
+   - Open Graph and Twitter Card tags
+   
+   **SECTION 11: Dependencies & Packages (CRITICAL - NO MISSING PACKAGES)**
+   - SCAN PHASE: Go through EVERY file and list ALL imports
+   - Complete dependency list with exact versions
+   - Usage justification for each package
+   - chirAction format specification: <chirAction type="file" filePath="package.json">{...}</chirAction>
+   - DOUBLE CHECK: Did you miss ANY package? Count imports vs dependencies
+   - Latest versions: react ^19.0.0, react-dom ^19.0.0, react-router-dom ^7.1.1, etc.
+   - VERIFY: Project must run WITHOUT npm install errors
+   
+   **SECTION 12: Performance Optimizations**
+   - Code splitting strategy
+   - Lazy loading patterns
+   - Image optimization
+   - Memoization opportunities
+   - Bundle size considerations
+   
+   **SECTION 13: Rich Features to Include**
+   - Inferred features beyond basic requirements
+   - Unique touches and creative elements
+   - Micro-interactions and delightful details
+   - Edge case handling
+   - Empty states and error scenarios
+   
+   **SECTION 14: Node/Edge Implementation Details**
+   - Comprehensive specs for EVERY node
+   - Implementation details for EVERY edge
+   - Data protocols and formats
+   
+   **SECTION 15: Production Checklist**
+   - Security measures (XSS, CSRF protection)
+   - Error boundaries and fallback UI
+   - Loading states throughout
+   - Toast notifications for user feedback
+   - Mobile responsiveness verified
+   - Accessibility tested
+   - SEO optimized
 
-4. ENSURE UNIQUENESS:
-   - Add at least 3 unique/creative features not explicitly requested
-   - Use interesting color schemes (not just blue/gray)
-   - Include thoughtful animations and transitions
-   - Add personality through copy and messaging
-   - Think about edge cases and handle them gracefully
-   - Make it feel like a real product, not a tutorial project
+4. **Feature Richness (GO BEYOND REQUIREMENTS):**
+   - Add 5+ inferred features users need but didn't mention
+   - Include search, filters, sorting where applicable
+   - Add pagination for lists
+   - Include empty states with helpful CTAs
+   - Add loading skeletons (not just spinners)
+   - Include error recovery mechanisms
+   - Add success celebrations/confirmations
+   - Include user preferences/settings
+   - Add tooltips and help text
+   - Include keyboard shortcuts where useful
 
-5. CRITICAL VALIDATION:
-   - Every package mentioned must be justified
-   - Every component must be fully specified
-   - All data flows must be documented
-   - Error states must be handled
-   - Loading states must be designed
-   - Mobile responsiveness is mandatory
-   - Accessibility is non-negotiable
+5. **Design Excellence:**
+   - Choose web-safe color palette (HSL values, proper contrast)
+   - Select 2 web-safe fonts (Inter, Roboto, Open Sans, etc.)
+   - Design custom animations (specific motion descriptions)
+   - Create unique UI patterns (not generic templates)
+   - Add personality through thoughtful copy
+   - Ensure visual hierarchy and white space
+   - NO emojis in code
 
-🎨 CREATIVITY REQUIREMENTS:
-- Choose a unique color palette (provide exact HSL values)
-- Design custom animations (describe exact motion/timing)
-- Add micro-interactions (hover effects, click feedback, transitions)
-- Include delightful details (loading skeletons, empty states, success celebrations)
-- Make the user experience memorable and enjoyable
+6. **Quality Standards:**
+   - Every package justified with usage
+   - Every component fully specified
+   - All data flows documented
+   - Error states handled everywhere
+   - Loading states for all async operations
+   - Mobile-first responsive design
+   - WCAG 2.1 AA accessibility
+   - Production-ready code quality
 
-🚀 OUTPUT REQUIREMENTS:
-- Pure JSON (no markdown, no comments)
+=== OUTPUT REQUIREMENTS ===
+
+- Pure JSON (no markdown, no comments, no code blocks)
 - Start with { and end with }
-- NO trailing commas
-- implementationPrompt must be 3000+ words
-- Include ALL 12 sections in detail
-- Make it SO comprehensive that the AI can generate PERFECT code
+- NO trailing commas anywhere
+- detailedContext: 8000+ words minimum (NO MAXIMUM - longer is better!)
+- Include ALL 15 sections with EXHAUSTIVE details
+- SECTION 4 (Page-by-Page) must be 3000+ words alone with EVERY page fully specified
+- Web-safe fonts and colors specified
+- Semantic tokens defined (no direct colors)
+- Rich features included (not minimal)
+- NO emojis anywhere
 
-Remember: Each project should feel UNIQUE and SPECIAL, not generic!`
+=== FINAL VALIDATION ===
+
+Before returning, ensure:
+- Design system FULLY specified with BEAUTIFUL, UNIQUE colors (not boring defaults)
+- All 15 sections included and COMPREHENSIVELY detailed
+- 8000+ words MINIMUM of implementation instructions (NO MAXIMUM)
+- SECTION 4 (Page-by-Page) has 3000+ words with EVERY page FULLY specified
+- Web-safe color palette with exact HSL values
+- 2 font families specified (Inter, Roboto, Open Sans, etc.)
+- Rich features beyond basic requirements (search, filters, pagination, etc.)
+- MULTIPLE pages specified (3-5 minimum)
+- React Router DOM routing configuration
+- Accessibility (WCAG 2.1 AA) and SEO included
+- NO emojis anywhere
+- chirAction format for package.json with ALL dependencies
+- SCAN verification: ALL imports have corresponding dependencies
+- Production-ready specifications worthy of real deployment
+- Unique design elements that make THIS project stand out
+
+**CRITICAL - NO PLACEHOLDERS ALLOWED:**
+- EVERY page must have REALISTIC sample content specified
+- NEVER say "content goes here" or "will be displayed"
+- Provide ACTUAL text for headings, paragraphs, button labels
+- List SPECIFIC sample data (e.g., "12 courses with titles, prices, descriptions")
+- Specify EXACT components to use on EACH page
+- Give REAL examples, not generic descriptions
+
+**REMEMBER:** The AI will implement EXACTLY what you specify. If you say "course listing will be displayed", it will create a placeholder. If you say "Display 12 CourseCard components in a 3-column grid with these specific courses: [list them]", it will create production-level content!
+
+REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-READY code. Think professional SaaS application. Make it comprehensive, beautiful, accessible, and feature-rich!`
           }
         ],
         temperature: 0.7, // Higher for more creativity and uniqueness
-        max_tokens: 20000, // Increased for longer, more detailed prompts
+        max_tokens: 32000, // MASSIVELY increased for ultra-detailed page-by-page specs
       });
 
       const rawOutput = completion?.choices?.[0]?.message?.content;
@@ -533,6 +842,37 @@ Remember: Each project should feel UNIQUE and SPECIAL, not generic!`
 
       console.log('Blueprint generated successfully');
       console.log(`Nodes: ${blueprint.workflow.nodes.length} | Edges: ${blueprint.workflow.edges.length}`);
+
+      // Select and append UI components to detailedContext (only for frontend/fullstack)
+      if (projectType === 'frontend' || projectType === 'fullstack') {
+        console.log('\n🎨 Selecting UI components to enrich the blueprint...');
+        
+        const detailedContextLengthBefore = blueprint.detailedContext.length;
+        console.log(`📊 detailedContext length BEFORE appending UI: ${detailedContextLengthBefore} chars`);
+        
+        const uiSelection = await UIService.selectComponents(requirements);
+        
+        if (uiSelection.selectedComponents.length > 0) {
+          // Append UI components to detailedContext at the end
+          blueprint.detailedContext += uiSelection.formattedForPrompt;
+          
+          const detailedContextLengthAfter = blueprint.detailedContext.length;
+          console.log(`\n✅ APPEND OPERATION COMPLETE:`);
+          console.log(`   - Added ${uiSelection.selectedComponents.length} UI components to detailedContext`);
+          console.log(`   - Selected components: ${uiSelection.selectedComponents.map(c => c.name).join(', ')}`);
+          console.log(`   - detailedContext length BEFORE: ${detailedContextLengthBefore} chars`);
+          console.log(`   - detailedContext length AFTER: ${detailedContextLengthAfter} chars`);
+          console.log(`   - UI components added: ${detailedContextLengthAfter - detailedContextLengthBefore} chars`);
+          
+          // Show last 500 chars to verify UI components are at the end
+          console.log(`\n📋 LAST 500 CHARS OF detailedContext (showing UI components):}`);
+          console.log('─'.repeat(80));
+          console.log(blueprint.detailedContext.slice(-500));
+          console.log('─'.repeat(80));
+        } else {
+          console.log('⚠️ No UI components selected (or selection failed)');
+        }
+      }
 
       return {
         success: true,

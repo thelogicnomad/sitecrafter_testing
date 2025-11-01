@@ -16,11 +16,10 @@ import { PlanningService } from './services/planning.service';
 dotenv.config();
 
 const app: Application = express();
-const token = process.env.openai_api;
 
 const client = new OpenAI({
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  apiKey: process.env.gemini2
+  apiKey: process.env.gemini
 });
 
 // Enhanced CORS configuration
@@ -60,44 +59,53 @@ app.use('/auth', googleAuthRoutes);
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const systemPrompt = getSystemPrompt();
 
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
-
 // const genAI = new GoogleGenerativeAI(process.env.gemini);
 // const model = genAI.getGenerativeModel({
 //   model: "gemini-2.5-flash",
 //   systemInstruction: getSystemPrompt(),
 // });
 
-// Template endpoint
+// Template endpoint - provides production-ready templates
 app.post("/template", async (req, res) => {
-  const prompt = req.body.prompt + "    Return either node or react based on what do you think this project should be. Only return a single word either 'node' or 'react'. Do not return anything extra";
-  const result = await openai.chat.completions.create({
-    model: "z-ai/glm-4.5-air:free",
-    messages: [{ role: "user", content: prompt }],
-    
-  });
-  const content=await result.choices[0].message.content;
-  const response = content?.toLowerCase().trim();
+  const prompt = req.body.prompt;
+  
+  if (!prompt) {
+    res.status(400).json({ message: "Prompt is required" });
+    return;
+  }
 
-  if (response === 'node') {
+  // Simplified project type detection - only for explicit backend-only projects
+  const promptLower = prompt.toLowerCase();
+  const explicitBackendOnly = (promptLower.includes('backend') || promptLower.includes('back-end') || 
+                                promptLower.includes('api only') || promptLower.includes('server only')) &&
+                               !promptLower.includes('frontend') && !promptLower.includes('ui') && 
+                               !promptLower.includes('react') && !promptLower.includes('fullstack');
+  
+  let projectType: 'frontend' | 'backend' | 'fullstack';
+  
+  if (explicitBackendOnly) {
+    projectType = 'backend';
+  } else {
+    // Default to fullstack for maximum capability
+    projectType = 'fullstack';
+  }
+
+  console.log(`[Template] Project type: ${projectType} (Production-Level)`);
+
+  // Return appropriate production-ready template
+  if (projectType === 'backend') {
     res.json({
       prompts: [BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${nodeprompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
       uiPrompts: [nodeprompt]
     });
     return;
   }
-  if (response === "react") {
-    res.json({
-      prompts: [BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${reactprompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
-      uiPrompts: [reactprompt]
-    });
-    return;
-  }
-
-  res.status(403).json({ message: "You cant access this" });
+  
+  // For frontend and fullstack, return production-ready React template
+  res.json({
+    prompts: [BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${reactprompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
+    uiPrompts: [reactprompt]
+  });
   return;
 });
 
@@ -135,6 +143,26 @@ app.post("/chat", async (req, res) => {
     }
 
     const messages = req.body.messages;
+    
+    console.log('\n🔵 /CHAT ENDPOINT CALLED');
+    console.log(`📨 Received ${messages.length} messages from frontend`);
+    
+    // Log each message to see if detailedContext (with UI components) is included
+    messages.forEach((msg: Message, index: number) => {
+      console.log(`\n📬 Message ${index + 1}:`);
+      console.log(`   Role: ${msg.role}`);
+      console.log(`   Content length: ${msg.content?.length || 0} chars`);
+      
+      // Check if this message contains UI components
+      if (msg.content && msg.content.includes('COMPULSORY USE ALL THESE UI COMPONENTS')) {
+        console.log('   ✅ CONTAINS UI COMPONENTS!');
+        console.log('   📋 Last 500 chars of this message:');
+        console.log('   ' + '─'.repeat(76));
+        console.log('   ' + String(msg.content).slice(-500).split('\n').join('\n   '));
+        console.log('   ' + '─'.repeat(76));
+      }
+    });
+    
     const chatMessages = [
       { role: "system", content: getSystemPrompt() },
       ...messages.map((msg: Message) => ({
@@ -142,6 +170,8 @@ app.post("/chat", async (req, res) => {
         content: msg.content,
       })),
     ];
+    
+    console.log(`\n🤖 Sending ${chatMessages.length} messages to LLM...\n`);
     
     const response = await client.chat.completions.create({
       model: "gemini-2.5-pro",
