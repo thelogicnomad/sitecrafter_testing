@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Sparkles, Loader2, Check, X, ArrowRight } from 'lucide-react';
 import axios from 'axios';
 import { BACKEND_URL } from '../config';
@@ -10,10 +10,53 @@ type PlanningState = 'input' | 'generating' | 'review';
 
 export function Planning() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = useState<PlanningState>('input');
   const [requirements, setRequirements] = useState('');
+  const [projectType, setProjectType] = useState<'frontend' | 'backend' | 'fullstack'>('frontend');
   const [blueprint, setBlueprint] = useState<ProjectBlueprint | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Initialize from ProjectTypeSelection navigation and auto-generate
+  useEffect(() => {
+    const initializeAndGenerate = async () => {
+      if (location.state?.prompt && location.state?.projectType) {
+        const promptText = location.state.prompt;
+        const typeFromSelection = location.state.projectType;
+        
+        setRequirements(promptText);
+        setProjectType(typeFromSelection);
+        
+        // Auto-trigger generation
+        console.log('[Planning] Auto-triggering generation from ProjectTypeSelection');
+        console.log('[Planning] Project Type:', typeFromSelection);
+        console.log('[Planning] Prompt:', promptText.substring(0, 100) + '...');
+        
+        setState('generating');
+        setError(null);
+
+        try {
+          const response = await axios.post(`${BACKEND_URL}/planning`, {
+            requirements: promptText.trim(),
+            projectType: typeFromSelection
+          });
+
+          if (response.data.success && response.data.data?.blueprint) {
+            setBlueprint(response.data.data.blueprint);
+            setState('review');
+          } else {
+            setError(response.data.error || 'Failed to generate plan');
+            setState('input');
+          }
+        } catch (err: any) {
+          setError(err.response?.data?.error || err.message || 'Failed to generate plan');
+          setState('input');
+        }
+      }
+    };
+    
+    initializeAndGenerate();
+  }, [location]);
 
   const handleGeneratePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +67,8 @@ export function Planning() {
 
     try {
       const response = await axios.post(`${BACKEND_URL}/planning`, {
-        requirements: requirements.trim()
+        requirements: requirements.trim(),
+        projectType: projectType
       });
 
       if (response.data.success && response.data.data?.blueprint) {
@@ -48,6 +92,7 @@ export function Planning() {
     navigate('/builder', {
       state: {
         prompt: detailedPrompt,
+        originalRequirements: requirements, // Pass original user input for template detection
         blueprint: blueprint
       }
     });

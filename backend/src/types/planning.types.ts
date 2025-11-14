@@ -52,6 +52,7 @@ export interface PlanningPhase {
 export interface ProjectBlueprint {
   projectName: string;
   description: string;
+  projectType: 'frontend' | 'backend' | 'fullstack';
   techStack: {
     frontend: string[];
     backend: string[];
@@ -63,7 +64,9 @@ export interface ProjectBlueprint {
     nodes: WorkflowNode[];
     edges: WorkflowEdge[];
   };
-  detailedContext: string; // Single ultra-detailed implementation string
+  detailedContext: string; // For frontend/backend only projects
+  backendContext?: string; // For fullstack projects - backend generation
+  frontendContext?: string; // For fullstack projects - frontend generation  
   phases?: PlanningPhase[];
 }
 

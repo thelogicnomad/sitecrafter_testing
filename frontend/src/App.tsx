@@ -7,6 +7,7 @@ import Signup from "./pages/Register";
 import Home from "./pages/Home";
 import { Builder } from "./pages/Builder";
 import { Planning } from "./pages/Planning";
+import { ProjectTypeSelection } from "./pages/ProjectTypeSelection";
 
 const App = () => {
   return (
@@ -18,10 +19,11 @@ const App = () => {
           <Route path="/signup" element={<Signup />} />
 
           <Route path="/dashboard" element={<ProtectedRoute />}>
-            <Route index element={<Dashboard />} />
+            <Route index element={<ProjectTypeSelection />} />
           </Route>
           
           <Route element={<ProtectedRoute />}>
+            <Route path="/select" element={<ProjectTypeSelection />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/builder" element={<Builder />} />
           </Route>

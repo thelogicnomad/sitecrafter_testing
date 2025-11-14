@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { chatCompletionWithRetry } from "../utils/openaiRetry";
 import { text } from '../ui/components';
 
 const client = new OpenAI({
@@ -19,6 +20,8 @@ interface UISelectionResult {
   selectedComponents: UIComponent[];
   formattedForPrompt: string;
 }
+
+const selectionCache: Map<string, UISelectionResult> = new Map();
 
 export class UIService {
   // Format all available components for AI understanding
@@ -58,6 +61,12 @@ export class UIService {
 
   // Analyze requirement and select 3-6 relevant components
   static async selectComponents(requirements: string): Promise<UISelectionResult> {
+    const cacheKey = requirements.trim();
+    console.log(`[UIService] selectComponents called. key length: ${cacheKey.length}`);
+    if (selectionCache.has(cacheKey)) {
+      console.log('[UIService] 🔄 Using cached UI selection');
+      return selectionCache.get(cacheKey)!;
+    }
     try {
       console.log('🎨 Selecting UI components based on requirements...');
 
@@ -100,7 +109,7 @@ CRITICAL REQUIREMENTS:
 - Select 4-8 components for a production-level experience
 - Think like a senior designer building for a premium client`;
 
-      const response = await client.chat.completions.create({
+      const response: any = await chatCompletionWithRetry(client, {
         model: UI_SELECTION_MODEL,
         messages: [{ role: "user", content: analysisPrompt }],
         temperature: 0.8, // Higher temperature for more creative selections
@@ -130,13 +139,15 @@ CRITICAL REQUIREMENTS:
       console.log('=' .repeat(80));
       console.log(`✅ Total length of UI components string: ${formattedForPrompt.length} chars\n`);
 
-      return {
+      const result = {
         selectedComponents,
         formattedForPrompt
-      };
+      } as UISelectionResult;
+      selectionCache.set(cacheKey, result);
+      return result;
 
     } catch (error: any) {
-      console.error('❌ Error selecting UI components:', error.message);
+      console.error(`❌ Error selecting UI components: ${error?.status || ''} ${error?.message || error}`);
       // Return empty selection on error to not break the flow
       return {
         selectedComponents: [],

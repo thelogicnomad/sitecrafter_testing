@@ -17,7 +17,11 @@ import { DownloadButton } from '../components/DownloadButton';
 export function Builder() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { prompt } = location.state as { prompt: string };
+  const { prompt, originalRequirements, blueprint } = location.state as { 
+    prompt: string; 
+    originalRequirements?: string;
+    blueprint?: any;
+  };
   const [userPrompt, setPrompt] = useState("");
   const [llmMessages, setLlmMessages] = useState<{role: "user" | "assistant", content: string;}[]>([]);
   const [loading, setLoading] = useState(false);
@@ -153,57 +157,172 @@ export function Builder() {
 
   async function init() {
     try {
-      const response = await axios.post(`${BACKEND_URL}/template`, {
-        prompt: prompt.trim()
-      });
-      setTemplateSet(true);
+      // Check if this is a fullstack project
+      const isFullstack = blueprint?.projectType === 'fullstack';
       
-      const {prompts, uiPrompts} = response.data;
+      if (isFullstack) {
+        console.log('[Builder] FULLSTACK PROJECT DETECTED');
+        console.log('[Builder] Backend context:', blueprint.backendContext?.length || 0, 'chars');
+        console.log('[Builder] Frontend context:', blueprint.frontendContext?.length || 0, 'chars');
+        
+        setLoading(true);
+        
+        // TEST: Call separate build endpoint (no backend context sharing)
+        const projectId = `project_${Date.now()}`;
+        console.log('[Builder] 🧪 TESTING SEPARATE GENERATION (no backend context)');
+        const fullstackResponse = await axios.post(`${BACKEND_URL}/build/separate`, {
+          backendContext: blueprint.backendContext,
+          frontendContext: blueprint.frontendContext,
+          projectId: projectId
+        });
+        
+        setLoading(false);
+        
+        // Parse backend code
+        const backendCode = fullstackResponse.data.backend;
+        const frontendCode = fullstackResponse.data.frontend;
+        
+        console.log('[Builder] Backend code received:', backendCode?.length || 0, 'chars');
+        console.log('[Builder] Frontend code received:', frontendCode?.length || 0, 'chars');
+        
+        // Debug: Show first 500 chars of each
+        console.log('[Builder] Backend preview:', backendCode?.substring(0, 500));
+        console.log('[Builder] Frontend preview:', frontendCode?.substring(0, 500));
+        
+        // Parse both responses and combine steps
+        const backendSteps = parseXml(backendCode || '');
+        const frontendSteps = parseXml(frontendCode || '');
+        
+        console.log('[Builder] Backend steps parsed:', backendSteps.length);
+        console.log('[Builder] Frontend steps parsed:', frontendSteps.length);
+        
+        // Prefix backend steps with backend/ folder (both title AND path)
+        const prefixedBackendSteps = backendSteps.map((step: Step) => {
+          // Skip modifying the first step if it's the artifact title
+          if (step.id === 1 && step.title && !step.path) {
+            return { ...step, title: 'Backend Server' };
+          }
+          
+          let newTitle = step.title;
+          let newPath = step.path;
+          
+          // Handle title prefixing
+          if (newTitle && !newTitle.includes('backend/')) {
+            // Extract "Create X" pattern and prefix the file path
+            const createMatch = newTitle.match(/^Create (.+)$/);
+            if (createMatch) {
+              newTitle = `Create backend/${createMatch[1]}`;
+            } else {
+              newTitle = `backend/${newTitle}`;
+            }
+          }
+          
+          // Handle path prefixing
+          if (newPath && !newPath.startsWith('backend/')) {
+            newPath = `backend/${newPath}`;
+          }
+          
+          return { ...step, title: newTitle, path: newPath };
+        });
+        
+        // Prefix frontend steps with frontend/ folder (both title AND path)
+        const prefixedFrontendSteps = frontendSteps.map((step: Step, idx: number) => {
+          // Skip modifying the first step if it's the artifact title
+          if (step.id === 1 && step.title && !step.path) {
+            return { ...step, id: backendSteps.length + idx + 1, title: 'Frontend Application' };
+          }
+          
+          let newTitle = step.title;
+          let newPath = step.path;
+          
+          // Handle title prefixing
+          if (newTitle && !newTitle.includes('frontend/')) {
+            // Extract "Create X" pattern and prefix the file path
+            const createMatch = newTitle.match(/^Create (.+)$/);
+            if (createMatch) {
+              newTitle = `Create frontend/${createMatch[1]}`;
+            } else {
+              newTitle = `frontend/${newTitle}`;
+            }
+          }
+          
+          // Handle path prefixing
+          if (newPath && !newPath.startsWith('frontend/')) {
+            newPath = `frontend/${newPath}`;
+          }
+          
+          return { ...step, id: backendSteps.length + idx + 1, title: newTitle, path: newPath };
+        });
+        
+        setSteps([...prefixedBackendSteps, ...prefixedFrontendSteps]);
+        
+        setLlmMessages([
+          { role: "assistant", content: backendCode || '' },
+          { role: "assistant", content: frontendCode || '' }
+        ]);
+        
+      } else {
+        // Normal flow for frontend/backend only projects
+        const templatePrompt = originalRequirements?.trim() || prompt.trim();
+        const projectTypeForTemplate = blueprint?.projectType || 'frontend';
+        
+        console.log('[Builder] Sending to /template:', templatePrompt.substring(0, 100) + '...');
+        console.log('[Builder] Project type:', projectTypeForTemplate);
+        
+        const response = await axios.post(`${BACKEND_URL}/template`, {
+          prompt: templatePrompt,
+          projectType: projectTypeForTemplate
+        });
+        setTemplateSet(true);
+        
+        const {prompts, uiPrompts} = response.data;
 
-      setSteps(parseXml(uiPrompts[0]).map((x: Step) => ({
-        ...x,
-        status: "pending"
-      })));
+        setSteps(parseXml(uiPrompts[0]).map((x: Step) => ({
+          ...x,
+          status: "pending"
+        })));
 
-      setLoading(true);
+        setLoading(true);
 
-      const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
-        messages: [...prompts, prompt].map(content => ({
+        // Use detailed prompt (detailedContext) for code generation
+        const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
+          messages: [...prompts, prompt].map(content => ({
+            role: "user",
+            content
+          }))
+        });
+
+        setLoading(false);
+
+        // Validate backend response
+        if (!stepsResponse.data || !stepsResponse.data.response) {
+          console.error('❌ Backend returned invalid response:', stepsResponse.data);
+          throw new Error('Backend did not return a valid response. Please check backend logs.');
+        }
+
+        setSteps(s => {
+          const newSteps = parseXml(stepsResponse.data.response);
+          
+          // Check if parseXml returned any steps
+          if (newSteps.length === 0) {
+            console.warn('⚠️ No steps were parsed from the response');
+          }
+          
+          const maxId = s.length > 0 ? Math.max(...s.map(step => step.id)) : 0;
+          return [...s, ...newSteps.map((x, idx) => ({
+            ...x,
+            id: maxId + idx + 1,
+            status: "pending" as "pending"
+          }))];
+        });
+
+        setLlmMessages([...prompts, prompt].map(content => ({
           role: "user",
           content
-        }))
-      });
+        })));
 
-      setLoading(false);
-
-      // Validate backend response
-      if (!stepsResponse.data || !stepsResponse.data.response) {
-        console.error('❌ Backend returned invalid response:', stepsResponse.data);
-        throw new Error('Backend did not return a valid response. Please check backend logs.');
+        setLlmMessages(x => [...x, {role: "assistant", content: stepsResponse.data.response}]);
       }
-
-      setSteps(s => {
-        const newSteps = parseXml(stepsResponse.data.response);
-        
-        // Check if parseXml returned any steps
-        if (newSteps.length === 0) {
-          console.warn('⚠️ No steps were parsed from the response');
-        }
-        
-        const maxId = s.length > 0 ? Math.max(...s.map(step => step.id)) : 0;
-        return [...s, ...newSteps.map((x, idx) => ({
-          ...x,
-          id: maxId + idx + 1,
-          status: "pending" as "pending"
-        }))];
-      });
-
-      setLlmMessages([...prompts, prompt].map(content => ({
-        role: "user",
-        content
-      })));
-
-      setLlmMessages(x => [...x, {role: "assistant", content: stepsResponse.data.response}]);
     } catch(error: any) {
       console.error('❌ Error generating website:', error);
       alert(`Failed to generate website: ${error.message || 'Unknown error'}. Check console for details.`);

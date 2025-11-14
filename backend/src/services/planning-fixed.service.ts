@@ -1,14 +1,26 @@
-import OpenAI from "openai";
 import type { PlanningResponse, ProjectBlueprint } from '../types/planning.types';
 import { OutputParser } from '../utils/parser.utils';
 import { UIService } from './ui.service';
+// Multiple Gemini instances
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI1 = new GoogleGenerativeAI(process.env.gemini);
+const genAI2 = new GoogleGenerativeAI(process.env.gemini2);
+const genAI3 = new GoogleGenerativeAI(process.env.gemini3);
 
-const client = new OpenAI({
-  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  apiKey: process.env.gemini
-});
+const model1 = genAI1.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-09-2025" });
+const model2 = genAI2.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-09-2025" });
+const model3 = genAI3.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-const PLANNING_MODEL = "gemini-2.5-flash"; // Use full flash model for better quality and longer outputs
+let currentModel = 0;
+function getNextModel() {
+  const models = [model1, model2, model3];
+  const model = models[currentModel % 3];
+  currentModel++;
+  console.log(`[Planning] Using model ${(currentModel - 1) % 3 + 1}`);
+  return model;
+}
+
+const PLANNING_MODEL = "gemini-2.5-flash-lite-preview-09-2025"; // Use full flash model for better quality and longer outputs
 
 interface ProjectAnalysis {
   type: 'frontend' | 'backend' | 'fullstack';
@@ -18,28 +30,151 @@ interface ProjectAnalysis {
 
 export class PlanningService {
 
+  private static async generateBackendContext(requirements: string, blueprint: ProjectBlueprint): Promise<string> {
+    const backendPrompt = `Create ULTRA-DETAILED backend implementation specifications for:
+
+"${requirements}"
+
+Focus ONLY on backend architecture. Generate comprehensive specifications including:
+
+1. **Complete Backend File Structure**
+   - All routes, controllers, models, middleware, services
+   - Exact file paths and purposes
+
+2. **API Endpoint Specifications**
+   - Every endpoint with HTTP method, path, description
+   - Request/response schemas with TypeScript interfaces
+   - Query parameters, path parameters, request bodies
+   - Response status codes and error handling
+
+3. **Database Models**
+   - MongoDB schemas with all fields and types
+   - Indexes, validation rules, relationships
+   - Sample documents for each collection
+
+4. **Authentication & Authorization**
+   - JWT implementation details
+   - Middleware specifications
+   - Protected routes
+
+5. **Business Logic Services**
+   - Service layer methods with TypeScript signatures
+   - Error handling and validation logic
+
+6. **Dependencies**
+   - Complete package.json with all backend dependencies
+   - Express, Mongoose, bcrypt, jsonwebtoken, cors, etc.
+
+Make this TypeScript-based Node.js/Express backend. Be extremely detailed with 8000+ words.`;
+
+    const model = getNextModel();
+    const result = await model.generateContent(`You are a backend architecture expert. Generate ultra-detailed TypeScript backend specifications.\n\n${backendPrompt}`);
+    const response = await result.response;
+
+    return response.text() || blueprint.detailedContext;
+  }
+
+  private static async generateFrontendContext(requirements: string, blueprint: ProjectBlueprint): Promise<string> {
+    const frontendPrompt = `Create ULTRA-DETAILED frontend implementation specifications for:
+
+"${requirements}"
+
+Focus ONLY on React frontend. Generate comprehensive specifications including:
+
+1. **Complete Frontend File Structure**
+   - All pages, components, hooks, utils
+   - Exact file paths and purposes
+
+2. **Page-by-Page Specifications** (CRITICAL - 3000+ words)
+   - Every page with exact content, components, layouts
+   - Hero sections with exact heading text
+   - Sample data for all grids/lists
+   - Realistic content (no placeholders)
+
+3. **Design System**
+   - Beautiful color palette (HSL values)
+   - Typography (2 font families)
+   - Semantic tokens
+   - Animations and transitions
+
+4. **Component Specifications**
+   - Props, state, TypeScript interfaces
+   - Accessibility features
+
+5. **Routing & Navigation**
+   - React Router DOM configuration
+   - All routes and protection rules
+
+6. **Dependencies**
+   - Complete package.json with React, Router, Framer Motion, etc.
+
+Make this production-ready React 19 + TypeScript. Be extremely detailed with 8000+ words.`;
+
+    const model = getNextModel();
+    const result = await model.generateContent(`You are a frontend architecture expert. Generate ultra-detailed React specifications.\n\n${frontendPrompt}`);
+    const response = await result.response;
+
+    let frontendContext = response.text() || blueprint.detailedContext;
+
+    // Add UI components
+    console.log('   - Selecting UI components...');
+    const uiSelection = await UIService.selectComponents(requirements);
+    if (uiSelection.selectedComponents.length > 0) {
+      frontendContext += uiSelection.formattedForPrompt;
+      console.log(`   - Added ${uiSelection.selectedComponents.length} UI components`);
+    }
+
+    return frontendContext;
+  }
 
   private static analyzeProject(requirements: string): ProjectAnalysis {
     const reqLower = requirements.toLowerCase();
     
-    // Detect project type based on explicit mentions
-    const hasFrontend = reqLower.includes('frontend') || reqLower.includes('front-end') || reqLower.includes('ui') || reqLower.includes('interface');
-    const hasBackend = reqLower.includes('backend') || reqLower.includes('back-end') || reqLower.includes('api') || reqLower.includes('server');
-    const hasFullstack = reqLower.includes('fullstack') || reqLower.includes('full-stack') || reqLower.includes('full stack');
+    // IMPROVED project type detection (matches index.ts logic)
+    
+    // Check for explicit frontend indicators
+    const isFrontendOnly = (reqLower.includes('frontend only') || 
+                            reqLower.includes('ui only') || 
+                            reqLower.includes('react app') ||
+                            reqLower.includes('react only')) &&
+                           !reqLower.includes('backend') && 
+                           !reqLower.includes('api');
+    
+    // Check for explicit backend indicators
+    const isBackendOnly = (reqLower.includes('backend') || 
+                           reqLower.includes('back-end') ||
+                           reqLower.includes('api') ||
+                           reqLower.includes('server') ||
+                           reqLower.includes('node.js') ||
+                           reqLower.includes('express') ||
+                           reqLower.includes('database')) &&
+                          !reqLower.includes('frontend') && 
+                          !reqLower.includes('react') &&
+                          !reqLower.includes('ui component');
+    
+    // Check for fullstack indicators
+    const isFullstack = reqLower.includes('fullstack') || 
+                        reqLower.includes('full-stack') ||
+                        reqLower.includes('full stack') ||
+                        (reqLower.includes('frontend') && reqLower.includes('backend'));
     
     let type: 'frontend' | 'backend' | 'fullstack';
     let nodeCount: number;
     
-    // Default to frontend for most cases (web apps)
-    if (hasBackend && !hasFrontend) {
+    // Determine project type with clear priority
+    if (isBackendOnly) {
       type = 'backend';
       nodeCount = 30; // Production-level backend architecture
-    } else if (hasFullstack) {
+      console.log('[Planning] Detected BACKEND project');
+    } else if (isFullstack) {
       type = 'fullstack';
       nodeCount = 40; // Production-level fullstack architecture
+      console.log('[Planning] Detected FULLSTACK project');
     } else {
+      // Default to frontend for UI/website projects
       type = 'frontend';
       nodeCount = 35; // Production-level frontend with MULTIPLE pages
+      console.log('[Planning] Detected/Defaulted to FRONTEND project');
     }
     
     // Always use complex/production-level
@@ -426,32 +561,49 @@ REMEMBER: The detailedContext is passed to code generation AI. It must be SO com
 
   static async generateBlueprint(
     requirements: string,
-    retryCount: number = 0
+    retryCount: number = 0,
+    projectTypeFromFrontend?: 'frontend' | 'backend' | 'fullstack'
   ): Promise<PlanningResponse> {
     const MAX_RETRIES = 3;
 
     try {
-      // Analyze project requirements
-      const analysis = this.analyzeProject(requirements);
-      const { type: projectType, nodeCount, complexity } = analysis;
+      // Use projectType from frontend if provided, otherwise analyze
+      let projectType: 'frontend' | 'backend' | 'fullstack';
+      let nodeCount: number;
+      let complexity: 'complex';
       
-      console.log(`\n🔍 PROJECT ANALYSIS:`);
-      console.log(`  Type: ${projectType.toUpperCase()}`);
+      if (projectTypeFromFrontend) {
+        // Use frontend selection (no keyword detection)
+        projectType = projectTypeFromFrontend;
+        const analysis = this.analyzeProject(requirements);
+        nodeCount = analysis.nodeCount;
+        complexity = analysis.complexity;
+        console.log(`\n🔍 PROJECT ANALYSIS (FROM FRONTEND):`);
+        console.log(`  Type: ${projectType.toUpperCase()} [User Selected]`);
+      } else {
+        // Fallback to keyword detection
+        const analysis = this.analyzeProject(requirements);
+        projectType = analysis.type;
+        nodeCount = analysis.nodeCount;
+        complexity = analysis.complexity;
+        console.log(`\n🔍 PROJECT ANALYSIS (DETECTED):`);
+        console.log(`  Type: ${projectType.toUpperCase()} [Auto-Detected]`);
+      }
       console.log(`  Complexity: ${complexity.toUpperCase()} (PRODUCTION-LEVEL)`);
       console.log(`  Nodes: ${nodeCount}`);
       console.log(`  LLM will intelligently determine all features and packages needed`);
       console.log(`\n📝 Generating production-level blueprint (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
 
-      const completion = await client.chat.completions.create({
-        model: PLANNING_MODEL,
-        messages: [
-          { 
-            role: "system", 
-            content: this.generateSystemPrompt(analysis) 
-          },
-          { 
-            role: "user", 
-            content: `Create a ${projectType.toUpperCase()} project blueprint for:
+      // Create analysis object for system prompt
+      const analysisForPrompt = {
+        type: projectType,
+        nodeCount,
+        complexity
+      };
+
+      const model = getNextModel();
+      const systemPrompt = this.generateSystemPrompt(analysisForPrompt);
+      const userPrompt = `Create a ${projectType.toUpperCase()} project blueprint for:
 
 "${requirements}"
 
@@ -459,6 +611,17 @@ REMEMBER: The detailedContext is passed to code generation AI. It must be SO com
 
 Design a PRODUCTION-READY, ENTERPRISE-GRADE, FEATURE-RICH application that WOWS users. Think professional SaaS product worthy of real deployment, not tutorial project.
 
+${projectType === 'backend' ? `
+**BACKEND-ONLY PROJECT:**
+DO NOT include any frontend/UI components. Focus ONLY on:
+- RESTful API endpoints (routes, controllers)
+- Business logic services
+- Database models and schemas
+- Authentication and authorization middleware
+- Validation and error handling
+- API documentation
+- Security features (CORS, rate limiting, sanitization)
+` : `
 **CRITICAL FIRST IMPRESSION:**
 This is the first version - make it AMAZING:
 - Think about what BEAUTIFUL designs this evokes
@@ -474,6 +637,7 @@ Even for simple requests, design 3-5 pages minimum:
 - Dashboard/App page (for interactive projects)
 - Use React Router DOM for navigation
 - Include navigation header/sidebar
+`}
 
 === COMPREHENSIVE SPECIFICATIONS REQUIRED ===
 
@@ -498,6 +662,30 @@ Even for simple requests, design 3-5 pages minimum:
    - Purpose and responsibility of each file
    - Folder organization rationale
    
+${projectType === 'backend' ? `
+   **SECTION 2: API Endpoint Specifications (THE MOST CRITICAL SECTION)**
+   - List ALL endpoints with HTTP methods, paths, descriptions
+   - Request body schemas (TypeScript interfaces)
+   - Response schemas with status codes
+   - Query parameters and path parameters
+   - Authentication requirements
+   - Rate limiting and validation rules
+   - Error responses (400, 401, 404, 500 with examples)
+   
+   **SECTION 3: Database Schema Specifications**
+   - All MongoDB collections/models with field types
+   - Indexes and relationships
+   - Validation rules and constraints
+   - Sample documents for each collection
+   - Migration considerations
+   
+   **SECTION 4: SERVICE LAYER SPECIFICATIONS**
+   - Business logic services (ProductService, UserService, etc.)
+   - Methods with TypeScript signatures
+   - Error handling and validation
+   - Integration with database models
+   - Authentication/authorization logic
+` : `
    **SECTION 2: Design System Specification (THE MOST CRITICAL SECTION)**
    - BEAUTIFUL, UNIQUE color palette: 3-5 colors with exact HSL values
    - Choose colors that match project vision and evoke right emotions
@@ -664,6 +852,7 @@ Even for simple requests, design 3-5 pages minimum:
    - Sample Data: 10 recent activities
    
    **YOU MUST CREATE THIS LEVEL OF DETAIL FOR EVERY SINGLE PAGE!**
+`}
    
    **SECTION 5: API Integration (if applicable)**
    - Endpoint specifications with full schemas
@@ -814,14 +1003,12 @@ Before returning, ensure:
 
 **REMEMBER:** The AI will implement EXACTLY what you specify. If you say "course listing will be displayed", it will create a placeholder. If you say "Display 12 CourseCard components in a 3-column grid with these specific courses: [list them]", it will create production-level content!
 
-REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-READY code. Think professional SaaS application. Make it comprehensive, beautiful, accessible, and feature-rich!`
-          }
-        ],
-        temperature: 0.7, // Higher for more creativity and uniqueness
-        max_tokens: 32000, // MASSIVELY increased for ultra-detailed page-by-page specs
-      });
+REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-READY code. Think professional SaaS application. Make it comprehensive, beautiful, accessible, and feature-rich!`;
 
-      const rawOutput = completion?.choices?.[0]?.message?.content;
+      const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+      const result = await model.generateContent(fullPrompt);
+      const response = await result.response;
+      const rawOutput = response.text();
       console.log(rawOutput);
       if (!rawOutput) {
         throw new Error('No response from AI');
@@ -834,7 +1021,7 @@ REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-
         if (retryCount < MAX_RETRIES) {
           console.log(`Parsing failed, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
           await new Promise(resolve => setTimeout(resolve, 1500));
-          return this.generateBlueprint(requirements, retryCount + 1);
+          return this.generateBlueprint(requirements, retryCount + 1, projectTypeFromFrontend);
         }
         
         throw new Error('Failed to parse blueprint after multiple attempts');
@@ -843,8 +1030,29 @@ REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-
       console.log('Blueprint generated successfully');
       console.log(`Nodes: ${blueprint.workflow.nodes.length} | Edges: ${blueprint.workflow.edges.length}`);
 
-      // Select and append UI components to detailedContext (only for frontend/fullstack)
-      if (projectType === 'frontend' || projectType === 'fullstack') {
+      // Add projectType to blueprint
+      blueprint.projectType = projectType;
+
+      // For FULLSTACK projects, generate TWO separate contexts
+      if (projectType === 'fullstack') {
+        console.log('\n🔄 FULLSTACK PROJECT: Generating separate backend and frontend contexts...');
+        
+        // Generate backend context
+        console.log('\n📦 Generating BACKEND context...');
+        const backendContext = await this.generateBackendContext(requirements, blueprint);
+        blueprint.backendContext = backendContext;
+        console.log(`✅ Backend context: ${backendContext.length} chars`);
+        
+        // Generate frontend context (will be enriched with backend knowledge later)
+        console.log('\n🎨 Generating FRONTEND context...');
+        const frontendContext = await this.generateFrontendContext(requirements, blueprint);
+        blueprint.frontendContext = frontendContext;
+        console.log(`✅ Frontend context: ${frontendContext.length} chars`);
+        
+        // Set detailedContext to backend for now (Builder will use it first)
+        blueprint.detailedContext = backendContext;
+        
+      } else if (projectType === 'frontend') {
         console.log('\n🎨 Selecting UI components to enrich the blueprint...');
         
         const detailedContextLengthBefore = blueprint.detailedContext.length;
@@ -885,7 +1093,7 @@ REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-
       if (retryCount < MAX_RETRIES) {
         console.log(`Error occurred, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
         await new Promise(resolve => setTimeout(resolve, 1500));
-        return this.generateBlueprint(requirements, retryCount + 1);
+        return this.generateBlueprint(requirements, retryCount + 1, projectTypeFromFrontend);
       }
       
       return { 
