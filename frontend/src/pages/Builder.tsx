@@ -170,7 +170,7 @@ export function Builder() {
         // TEST: Call separate build endpoint (no backend context sharing)
         const projectId = `project_${Date.now()}`;
         console.log('[Builder] 🧪 TESTING SEPARATE GENERATION (no backend context)');
-        const fullstackResponse = await axios.post(`${BACKEND_URL}/build/separate`, {
+        const fullstackResponse = await axios.post(`${BACKEND_URL}/build/fullstack-complete`, {
           backendContext: blueprint.backendContext,
           frontendContext: blueprint.frontendContext,
           projectId: projectId

@@ -10,19 +10,22 @@ import { COMPLETE_REACT_TEMPLATE } from "./deafult/react-complete";
 import { nodeprompt } from "./deafult/node";
 import { QUALITY_REQUIREMENTS, FRONTEND_QUALITY_CHECKLIST, BACKEND_QUALITY_CHECKLIST } from './prompts/quality-enforcement';
 import { parseBackendCode, generateAPISpecification } from './utils/backend-parser';
+import { storeBackendKnowledge, retrieveBackendKnowledge, formatBackendInfoForMem0 } from './services/mem0.service';
 import OpenAI from "openai";
 import authRoutes from './routes/auth';
 import googleAuthRoutes from './routes/googleAuth';
 import './config/passport';
 import { PlanningService } from './services/planning-fixed.service';
-
+import axios, { AxiosInstance } from "axios";
+import { generateIntegratedFullstack } from './endpoints/fullstack-integrated';
+import { generateCompleteFullstack } from './endpoints/fullstack-complete';
 dotenv.config();
 
 const app: Application = express();
 
 const client = new OpenAI({
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  apiKey: process.env.gemini
+  apiKey: process.env.gemini3
 });
 
 // Enhanced CORS configuration
@@ -40,7 +43,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Session and Passport middleware
 app.use(
@@ -182,112 +186,73 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Test endpoint removed - using direct context passing instead of Supermemory
-// Supermemory is a memory router for LLM calls, not a document storage API
-/*
-app.post("/test/supermemory", async (req: Request, res: Response) => {
+
+//testing mem0
+
+
+
+
+
+const MEM0_API_KEY = process.env.mem0|| "";
+const MEM0_API_URL = "https://api.mem0.ai/v1";
+
+// Create axios client with types
+const mem0Client: AxiosInstance = axios.create({
+  baseURL: MEM0_API_URL,
+  headers: {
+    Authorization: `Token ${MEM0_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+});
+
+app.post("/test/mem0", async (req: Request, res: Response) => {
   try {
-    console.log('\n🧪 TESTING SUPERMEMORY...\n');
-    
-    const supermemory = new SupermemoryService();
-    const testProjectId = `test_${Date.now()}`;
-    
-    // Test 1: Add a document
-    console.log('📝 Test 1: Adding document...');
-    const testContent = `
-    API Endpoint: POST /api/products
-    Description: Create a new product
-    Request Body: { name: string, price: number, category: string }
-    Response: { id: string, name: string, price: number, category: string, createdAt: Date }
-    
-    API Endpoint: GET /api/products
-    Description: Get all products
-    Response: Array of products
-    
-    Database Model: Product
-    Fields: { name: String, price: Number, category: String, inStock: Boolean }
-    `;
-    
-    const addResult = await supermemory.addDocument(testContent, {
-      containerTag: testProjectId,
-      customId: `${testProjectId}_test_doc`,
+    const messages = [
+      { role: "user", content: "<user-message>" },
+      { role: "assistant", content: "<assistant-response>" },
+    ];
+
+    const payload = {
+      messages,
+      user_id: "test-user",
       metadata: {
-        type: 'backend',
-        test: true
-      }
-    });
-    
-    if (addResult) {
-      console.log('✅ Document added successfully');
-      console.log('   Document ID:', addResult.id);
-    } else {
-      console.log('❌ Failed to add document (check API key)');
-      res.json({
-        success: false,
-        message: 'Failed to add document. Check if SUPERMEMORY_API_KEY is set in .env',
-        tests: {
-          addDocument: false,
-          search: false
-        }
-      });
-      return;
-    }
-    
-    // Wait a bit for indexing
-    console.log('\n⏳ Waiting 3 seconds for indexing...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Test 2: Search for content
-    console.log('\n🔍 Test 2: Searching for "API endpoints"...');
-    const searchResult = await supermemory.searchMemories('API endpoints for products', testProjectId);
-    
-    if (searchResult && searchResult.length > 0) {
-      console.log('✅ Search successful');
-      console.log('   Found:', searchResult.substring(0, 200) + '...');
-    } else {
-      console.log('❌ Search failed or returned no results');
-    }
-    
-    // Test 3: Get backend context
-    console.log('\n📦 Test 3: Getting backend context...');
-    const backendContext = await supermemory.getBackendContext(testProjectId);
-    
-    if (backendContext && backendContext.length > 0) {
-      console.log('✅ Backend context retrieved');
-      console.log('   Length:', backendContext.length, 'chars');
-    } else {
-      console.log('❌ Backend context retrieval failed');
-    }
-    
-    console.log('\n🎉 SUPERMEMORY TEST COMPLETE\n');
-    
-    res.json({
+        project_id: "test-project",
+        type: "test",
+        created_at: new Date().toISOString(),
+      },
+    };
+
+    const response = await mem0Client.post("/memories/", payload);
+
+   res.status(200).json({
       success: true,
-      message: 'Supermemory is working correctly!',
-      tests: {
-        addDocument: !!addResult,
-        search: searchResult.length > 0,
-        getBackendContext: backendContext.length > 0
-      },
-      results: {
-        documentId: addResult?.id,
-        searchResultLength: searchResult.length,
-        backendContextLength: backendContext.length,
-        searchPreview: searchResult.substring(0, 200)
-      },
-      projectId: testProjectId
+      mem0_response: response.data,
     });
-    
   } catch (error: any) {
-    console.error('❌ Supermemory test error:', error);
-    res.status(500).json({
+    console.error("Mem0 error:", error?.response?.data || error.message);
+
+     res.status(500).json({
       success: false,
-      error: error.message,
-      hint: 'Make sure SUPERMEMORY_API_KEY is set in .env file'
+      error: error?.response?.data || error.message,
     });
   }
 });
-*/
+
+
+
+
+
+
+
+// ============================================================
+// NEW: COMPLETE FULLSTACK GENERATION (BEST - WITH ANALYSIS)
+// ============================================================
+app.post("/build/fullstack-complete", generateCompleteFullstack);
+
+// ============================================================
+// NEW: INTEGRATED FULLSTACK GENERATION (RECOMMENDED)
+// ============================================================
+app.post("/build/fullstack-integrated", generateIntegratedFullstack);
 
 // TEST: Separate Backend/Frontend Generation (No Context Sharing)
 app.post("/build/separate", async (req: Request, res: Response) => {
@@ -344,14 +309,39 @@ CRITICAL INSTRUCTIONS:
     const backendCode = backendResponse.choices[0].message.content || '';
     console.log(`✅ Backend code generated: ${backendCode.length} chars`);
     
-    // Step 2: Generate Frontend Code (Independent - NO BACKEND CONTEXT)
-    console.log('\n🎨 STEP 2: Generating frontend code (independent - no backend context)...');
+    // Store backend knowledge in Mem0
+    console.log('\n💾 STEP 1.5: Storing backend knowledge in Mem0...');
+    const backendInfo = formatBackendInfoForMem0(backendCode);
+    const memoryId = await storeBackendKnowledge(projectId, {
+      endpoints: backendInfo.endpoints,
+      authentication: backendInfo.authentication,
+      features: backendInfo.features,
+      dataModels: backendInfo.dataModels,
+      baseURL: backendInfo.baseURL,
+      apiPrefix: backendInfo.apiPrefix
+    });
+    console.log(`✅ Backend knowledge stored in Mem0 (Memory ID: ${memoryId})`);
     
-    const independentFrontendContext = `${QUALITY_REQUIREMENTS}
+    // Step 2: Generate Frontend Code (Using Mem0 Backend Knowledge)
+    console.log('\n🎨 STEP 2: Generating frontend code (using Mem0 backend knowledge)...');
+    
+    // Retrieve backend knowledge from Mem0
+    console.log('📚 Retrieving backend knowledge from Mem0...');
+    const backendKnowledgeForFrontend = await retrieveBackendKnowledge(projectId);
+    
+    if (!backendKnowledgeForFrontend) {
+      console.warn('⚠️ Warning: Backend knowledge not found in Mem0, using minimal context');
+    }
+    
+    // Create frontend context with Mem0 knowledge (much smaller than full backend code)
+    const frontendContextWithMem0 = `${QUALITY_REQUIREMENTS}
 
 ${FRONTEND_QUALITY_CHECKLIST}
 
-USER REQUIREMENTS:
+${backendKnowledgeForFrontend ? `## BACKEND API SPECIFICATION (from Mem0)
+${backendKnowledgeForFrontend}
+
+` : ''}## USER REQUIREMENTS
 ${frontendContext}
 
 CRITICAL INSTRUCTIONS:
@@ -367,14 +357,16 @@ CRITICAL INSTRUCTIONS:
 10. NO README - DO NOT CREATE README.md FILES
 11. NO ERRORS - code must work perfectly after npm install && npm run dev
 12. Use reliable image URLs from Unsplash only
-13. Create mock data for now (since no backend integration in this test)
-14. Focus on beautiful UI and user experience`;
+13. Integrate with backend API endpoints from the specification above
+14. Create proper authentication pages (login, signup, logout)
+15. Focus on beautiful UI and user experience
+16. Match frontend features with backend capabilities`;
     
     const frontendMessages = [
       { role: "system" as const, content: getSystemPrompt() },
       { role: "user" as const, content: BASE_PROMPT },
       { role: "user" as const, content: `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${COMPLETE_REACT_TEMPLATE}\n\nThis is the base template. You MUST include ALL these config files plus any additional files needed for the project.` },
-      { role: "user" as const, content: independentFrontendContext }
+      { role: "user" as const, content: frontendContextWithMem0 }
     ];
     
     const frontendResponse = await client.chat.completions.create({
@@ -403,6 +395,95 @@ CRITICAL INSTRUCTIONS:
     
   } catch (error: any) {
     console.error("Error processing separate build:", error);
+    res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+});
+
+// Frontend Generation using Mem0 Backend Knowledge
+app.post("/build/frontend-with-mem0", async (req: Request, res: Response) => {
+  try {
+    const { projectId, frontendContext } = req.body;
+    
+    console.log('\n🧠 /BUILD/FRONTEND-WITH-MEM0 ENDPOINT CALLED');
+    console.log(`🆔 Project ID: ${projectId}`);
+    console.log(`🎨 Frontend context: ${frontendContext?.length || 0} chars`);
+    
+    // Step 1: Retrieve backend knowledge from Mem0
+    console.log('\n🔍 STEP 1: Retrieving backend knowledge from Mem0...');
+    const backendKnowledge = await retrieveBackendKnowledge(projectId);
+    
+    if (!backendKnowledge) {
+      console.warn('⚠️ No backend knowledge found in Mem0 for this project');
+      res.status(400).json({
+        error: 'Backend knowledge not found. Please generate backend first using /build/separate'
+      });
+      return;
+    }
+    
+    console.log(`✅ Retrieved backend knowledge (${backendKnowledge.length} chars)`);
+    
+    // Step 2: Generate Frontend with Mem0 Backend Knowledge
+    console.log('\n🎨 STEP 2: Generating frontend with Mem0 backend knowledge...');
+    
+    const frontendContextWithMem0 = `${QUALITY_REQUIREMENTS}
+
+${FRONTEND_QUALITY_CHECKLIST}
+
+## BACKEND KNOWLEDGE (from Mem0)
+${backendKnowledge}
+
+## USER REQUIREMENTS
+${frontendContext}
+
+CRITICAL INSTRUCTIONS:
+1. Create a beautiful, modern React application
+2. Use TypeScript with strict mode enabled
+3. Use Tailwind CSS for styling
+4. Create ALL config files (tsconfig.json, tsconfig.node.json, vite.config.ts, postcss.config.js, tailwind.config.js)
+5. Include ALL dependencies in package.json
+6. Implement ALL pages fully - NO placeholders
+7. Use professional, web-safe color schemes
+8. Make the UI responsive and accessible
+9. Add loading states and error handling
+10. NO README - DO NOT CREATE README.md FILES
+11. NO ERRORS - code must work perfectly after npm install && npm run dev
+12. Use reliable image URLs from Unsplash only
+13. **INTEGRATE WITH BACKEND**: Use the backend knowledge above to create API services
+14. Create .env file with VITE_API_URL=http://localhost:5000
+15. Focus on beautiful UI and user experience`;
+    
+    const frontendMessages = [
+      { role: "system" as const, content: getSystemPrompt() },
+      { role: "user" as const, content: BASE_PROMPT },
+      { role: "user" as const, content: `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${COMPLETE_REACT_TEMPLATE}\n\nThis is the base template. You MUST include ALL these config files plus any additional files needed for the project.` },
+      { role: "user" as const, content: frontendContextWithMem0 }
+    ];
+    
+    const frontendResponse = await client.chat.completions.create({
+      model: "gemini-2.5-pro",
+      messages: frontendMessages as any,
+    });
+    
+    const frontendCode = frontendResponse.choices[0].message.content || '';
+    console.log(`✅ Frontend code generated: ${frontendCode.length} chars`);
+    
+    // Debug: Check what we're actually returning
+    if (!frontendCode || frontendCode.length === 0) {
+      console.error('❌ WARNING: Frontend code is empty!');
+      console.error('Frontend response structure:', JSON.stringify(frontendResponse, null, 2).substring(0, 1000));
+    }
+    
+    console.log('\n✅ FRONTEND GENERATION WITH MEM0 COMPLETE!\n');
+    console.log(`🎨 Frontend: ${frontendCode.length} chars`);
+    
+    // Return frontend code
+    res.json({
+      frontend: frontendCode,
+      projectId: projectId
+    });
+    
+  } catch (error: any) {
+    console.error("Error generating frontend with Mem0:", error);
     res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 });

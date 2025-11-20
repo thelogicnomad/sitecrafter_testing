@@ -7,7 +7,7 @@ const client = new OpenAI({
   apiKey: process.env.gemini2
 });
 
-const UI_SELECTION_MODEL = "gemini-2.5-flash";
+const UI_SELECTION_MODEL = "gemini-2.5-flash-lite-preview-09-2025";
 
 interface UIComponent {
   name: string;

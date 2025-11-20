@@ -1,26 +1,20 @@
 import type { PlanningResponse, ProjectBlueprint } from '../types/planning.types';
 import { OutputParser } from '../utils/parser.utils';
 import { UIService } from './ui.service';
-// Multiple Gemini instances
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const genAI1 = new GoogleGenerativeAI(process.env.gemini);
-const genAI2 = new GoogleGenerativeAI(process.env.gemini2);
-const genAI3 = new GoogleGenerativeAI(process.env.gemini3);
+import OpenAI from "openai";
 
-const model1 = genAI1.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-09-2025" });
-const model2 = genAI2.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-09-2025" });
-const model3 = genAI3.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+// Initialize OpenAI client with Gemini API
+const openai = new OpenAI({
+  apiKey: process.env.gemini,
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+});
 
-let currentModel = 0;
-function getNextModel() {
-  const models = [model1, model2, model3];
-  const model = models[currentModel % 3];
-  currentModel++;
-  console.log(`[Planning] Using model ${(currentModel - 1) % 3 + 1}`);
-  return model;
-}
+const openai2 = new OpenAI({
+  apiKey: process.env.gemini2,
+  baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+});
 
-const PLANNING_MODEL = "gemini-2.5-flash-lite-preview-09-2025"; // Use full flash model for better quality and longer outputs
+const PLANNING_MODEL = "gemini-2.5-flash-lite-preview-09-2025"; // Single model for planning
 
 interface ProjectAnalysis {
   type: 'frontend' | 'backend' | 'fullstack';
@@ -67,11 +61,21 @@ Focus ONLY on backend architecture. Generate comprehensive specifications includ
 
 Make this TypeScript-based Node.js/Express backend. Be extremely detailed with 8000+ words.`;
 
-    const model = getNextModel();
-    const result = await model.generateContent(`You are a backend architecture expert. Generate ultra-detailed TypeScript backend specifications.\n\n${backendPrompt}`);
-    const response = await result.response;
+    const response = await openai.chat.completions.create({
+      model: PLANNING_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: "You are a backend architecture expert. Generate ultra-detailed TypeScript backend specifications."
+        },
+        {
+          role: "user",
+          content: backendPrompt
+        }
+      ]
+    });
 
-    return response.text() || blueprint.detailedContext;
+    return response.choices[0].message.content || blueprint.detailedContext;
   }
 
   private static async generateFrontendContext(requirements: string, blueprint: ProjectBlueprint): Promise<string> {
@@ -110,11 +114,21 @@ Focus ONLY on React frontend. Generate comprehensive specifications including:
 
 Make this production-ready React 19 + TypeScript. Be extremely detailed with 8000+ words.`;
 
-    const model = getNextModel();
-    const result = await model.generateContent(`You are a frontend architecture expert. Generate ultra-detailed React specifications.\n\n${frontendPrompt}`);
-    const response = await result.response;
+    const response = await openai2.chat.completions.create({
+      model: PLANNING_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: "You are a frontend architecture expert. Generate ultra-detailed React specifications."
+        },
+        {
+          role: "user",
+          content: frontendPrompt
+        }
+      ]
+    });
 
-    let frontendContext = response.text() || blueprint.detailedContext;
+    let frontendContext = response.choices[0].message.content || blueprint.detailedContext;
 
     // Add UI components
     console.log('   - Selecting UI components...');
@@ -601,7 +615,6 @@ REMEMBER: The detailedContext is passed to code generation AI. It must be SO com
         complexity
       };
 
-      const model = getNextModel();
       const systemPrompt = this.generateSystemPrompt(analysisForPrompt);
       const userPrompt = `Create a ${projectType.toUpperCase()} project blueprint for:
 
@@ -1006,9 +1019,16 @@ Before returning, ensure:
 REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-READY code. Think professional SaaS application. Make it comprehensive, beautiful, accessible, and feature-rich!`;
 
       const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
-      const result = await model.generateContent(fullPrompt);
-      const response = await result.response;
-      const rawOutput = response.text();
+      const response = await openai.chat.completions.create({
+        model: PLANNING_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: fullPrompt
+          }
+        ]
+      });
+      const rawOutput = response.choices[0].message.content;
       console.log(rawOutput);
       if (!rawOutput) {
         throw new Error('No response from AI');
