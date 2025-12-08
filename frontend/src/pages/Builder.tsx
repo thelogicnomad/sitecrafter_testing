@@ -17,13 +17,13 @@ import { DownloadButton } from '../components/DownloadButton';
 export function Builder() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { prompt, originalRequirements, blueprint } = location.state as { 
-    prompt: string; 
+  const { prompt, originalRequirements, blueprint } = location.state as {
+    prompt: string;
     originalRequirements?: string;
     blueprint?: any;
   };
   const [userPrompt, setPrompt] = useState("");
-  const [llmMessages, setLlmMessages] = useState<{role: "user" | "assistant", content: string;}[]>([]);
+  const [llmMessages, setLlmMessages] = useState<{ role: "user" | "assistant", content: string; }[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [templateSet, setTemplateSet] = useState(false);
@@ -32,9 +32,10 @@ export function Builder() {
   const [currentStep, setCurrentStep] = useState(1);
   const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
-  
+
   const [steps, setSteps] = useState<Step[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [useAgenticMode, setUseAgenticMode] = useState(true); // NEW: Toggle for agentic generation
 
   const handleCodeChange = useCallback((newContent: string) => {
     if (!selectedFile) return;
@@ -62,19 +63,19 @@ export function Builder() {
   useEffect(() => {
     let originalFiles = [...files];
     let updateHappened = false;
-    steps.filter(({status}) => status === "pending").map(step => {
+    steps.filter(({ status }) => status === "pending").map(step => {
       updateHappened = true;
       if (step?.type === StepType.CreateFile) {
         let parsedPath = step.path?.split("/") ?? [];
         let currentFileStructure = [...originalFiles];
         let finalAnswerRef = currentFileStructure;
-  
+
         let currentFolder = ""
-        while(parsedPath.length) {
-          currentFolder =  `${currentFolder}/${parsedPath[0]}`;
+        while (parsedPath.length) {
+          currentFolder = `${currentFolder}/${parsedPath[0]}`;
           let currentFolderName = parsedPath[0];
           parsedPath = parsedPath.slice(1);
-  
+
           if (!parsedPath.length) {
             let file = currentFileStructure.find(x => x.path === currentFolder)
             if (!file) {
@@ -97,7 +98,7 @@ export function Builder() {
                 children: []
               })
             }
-  
+
             currentFileStructure = currentFileStructure.find(x => x.path === currentFolder)!.children!;
           }
         }
@@ -117,14 +118,14 @@ export function Builder() {
   useEffect(() => {
     const createMountStructure = (files: FileItem[]): Record<string, any> => {
       const mountStructure: Record<string, any> = {};
-  
-      const processFile = (file: FileItem, isRootFolder: boolean) => {  
+
+      const processFile = (file: FileItem, isRootFolder: boolean) => {
         if (file.type === 'folder') {
           mountStructure[file.name] = {
-            directory: file.children ? 
+            directory: file.children ?
               Object.fromEntries(
                 file.children.map(child => [child.name, processFile(child, false)])
-              ) 
+              )
               : {}
           };
         } else if (file.type === 'file') {
@@ -142,15 +143,15 @@ export function Builder() {
             };
           }
         }
-  
+
         return mountStructure[file.name];
       };
-  
+
       files.forEach(file => processFile(file, true));
-  
+
       return mountStructure;
     };
-  
+
     const mountStructure = createMountStructure(files);
     webcontainer?.mount(mountStructure);
   }, [files, webcontainer]);
@@ -159,14 +160,14 @@ export function Builder() {
     try {
       // Check if this is a fullstack project
       const isFullstack = blueprint?.projectType === 'fullstack';
-      
+
       if (isFullstack) {
         console.log('[Builder] FULLSTACK PROJECT DETECTED');
         console.log('[Builder] Backend context:', blueprint.backendContext?.length || 0, 'chars');
         console.log('[Builder] Frontend context:', blueprint.frontendContext?.length || 0, 'chars');
-        
+
         setLoading(true);
-        
+
         // TEST: Call separate build endpoint (no backend context sharing)
         const projectId = `project_${Date.now()}`;
         console.log('[Builder] 🧪 TESTING SEPARATE GENERATION (no backend context)');
@@ -175,37 +176,37 @@ export function Builder() {
           frontendContext: blueprint.frontendContext,
           projectId: projectId
         });
-        
+
         setLoading(false);
-        
+
         // Parse backend code
         const backendCode = fullstackResponse.data.backend;
         const frontendCode = fullstackResponse.data.frontend;
-        
+
         console.log('[Builder] Backend code received:', backendCode?.length || 0, 'chars');
         console.log('[Builder] Frontend code received:', frontendCode?.length || 0, 'chars');
-        
+
         // Debug: Show first 500 chars of each
         console.log('[Builder] Backend preview:', backendCode?.substring(0, 500));
         console.log('[Builder] Frontend preview:', frontendCode?.substring(0, 500));
-        
+
         // Parse both responses and combine steps
         const backendSteps = parseXml(backendCode || '');
         const frontendSteps = parseXml(frontendCode || '');
-        
+
         console.log('[Builder] Backend steps parsed:', backendSteps.length);
         console.log('[Builder] Frontend steps parsed:', frontendSteps.length);
-        
+
         // Prefix backend steps with backend/ folder (both title AND path)
         const prefixedBackendSteps = backendSteps.map((step: Step) => {
           // Skip modifying the first step if it's the artifact title
           if (step.id === 1 && step.title && !step.path) {
             return { ...step, title: 'Backend Server' };
           }
-          
+
           let newTitle = step.title;
           let newPath = step.path;
-          
+
           // Handle title prefixing
           if (newTitle && !newTitle.includes('backend/')) {
             // Extract "Create X" pattern and prefix the file path
@@ -216,25 +217,25 @@ export function Builder() {
               newTitle = `backend/${newTitle}`;
             }
           }
-          
+
           // Handle path prefixing
           if (newPath && !newPath.startsWith('backend/')) {
             newPath = `backend/${newPath}`;
           }
-          
+
           return { ...step, title: newTitle, path: newPath };
         });
-        
+
         // Prefix frontend steps with frontend/ folder (both title AND path)
         const prefixedFrontendSteps = frontendSteps.map((step: Step, idx: number) => {
           // Skip modifying the first step if it's the artifact title
           if (step.id === 1 && step.title && !step.path) {
             return { ...step, id: backendSteps.length + idx + 1, title: 'Frontend Application' };
           }
-          
+
           let newTitle = step.title;
           let newPath = step.path;
-          
+
           // Handle title prefixing
           if (newTitle && !newTitle.includes('frontend/')) {
             // Extract "Create X" pattern and prefix the file path
@@ -245,37 +246,37 @@ export function Builder() {
               newTitle = `frontend/${newTitle}`;
             }
           }
-          
+
           // Handle path prefixing
           if (newPath && !newPath.startsWith('frontend/')) {
             newPath = `frontend/${newPath}`;
           }
-          
+
           return { ...step, id: backendSteps.length + idx + 1, title: newTitle, path: newPath };
         });
-        
+
         setSteps([...prefixedBackendSteps, ...prefixedFrontendSteps]);
-        
+
         setLlmMessages([
           { role: "assistant", content: backendCode || '' },
           { role: "assistant", content: frontendCode || '' }
         ]);
-        
+
       } else {
         // Normal flow for frontend/backend only projects
         const templatePrompt = originalRequirements?.trim() || prompt.trim();
         const projectTypeForTemplate = blueprint?.projectType || 'frontend';
-        
+
         console.log('[Builder] Sending to /template:', templatePrompt.substring(0, 100) + '...');
         console.log('[Builder] Project type:', projectTypeForTemplate);
-        
+
         const response = await axios.post(`${BACKEND_URL}/template`, {
           prompt: templatePrompt,
           projectType: projectTypeForTemplate
         });
         setTemplateSet(true);
-        
-        const {prompts, uiPrompts} = response.data;
+
+        const { prompts, uiPrompts } = response.data;
 
         setSteps(parseXml(uiPrompts[0]).map((x: Step) => ({
           ...x,
@@ -284,13 +285,25 @@ export function Builder() {
 
         setLoading(true);
 
-        // Use detailed prompt (detailedContext) for code generation
-        const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
-          messages: [...prompts, prompt].map(content => ({
-            role: "user",
-            content
-          }))
-        });
+        let stepsResponse;
+
+        if (useAgenticMode) {
+          // NEW: Use multi-step agentic generation pipeline
+          console.log('[Builder] 🚀 Using AGENTIC generation mode');
+          stepsResponse = await axios.post(`${BACKEND_URL}/chat/agentic`, {
+            prompt: prompt,
+            projectType: projectTypeForTemplate
+          });
+        } else {
+          // OLD: Use single-call generation
+          console.log('[Builder] Using standard generation mode');
+          stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
+            messages: [...prompts, prompt].map(content => ({
+              role: "user",
+              content
+            }))
+          });
+        }
 
         setLoading(false);
 
@@ -302,12 +315,12 @@ export function Builder() {
 
         setSteps(s => {
           const newSteps = parseXml(stepsResponse.data.response);
-          
+
           // Check if parseXml returned any steps
           if (newSteps.length === 0) {
             console.warn('⚠️ No steps were parsed from the response');
           }
-          
+
           const maxId = s.length > 0 ? Math.max(...s.map(step => step.id)) : 0;
           return [...s, ...newSteps.map((x, idx) => ({
             ...x,
@@ -321,9 +334,9 @@ export function Builder() {
           content
         })));
 
-        setLlmMessages(x => [...x, {role: "assistant", content: stepsResponse.data.response}]);
+        setLlmMessages(x => [...x, { role: "assistant", content: stepsResponse.data.response }]);
       }
-    } catch(error: any) {
+    } catch (error: any) {
       console.error('❌ Error generating website:', error);
       alert(`Failed to generate website: ${error.message || 'Unknown error'}. Check console for details.`);
     } finally {
@@ -357,7 +370,7 @@ export function Builder() {
       <header className="bg-gradient-to-r from-gray-800 to-gray-700 border-b border-gray-600/50 px-6 py-3 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-6">
-            <button 
+            <button
               onClick={() => navigate('/dashboard')}
               className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
             >
@@ -367,11 +380,22 @@ export function Builder() {
               </h1>
             </button>
             <DownloadButton files={files} />
+            {/* NEW: Agentic Mode Toggle */}
+            <button
+              onClick={() => setUseAgenticMode(!useAgenticMode)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${useAgenticMode
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                }`}
+              title={useAgenticMode ? 'Agentic Mode: Multi-step generation with self-verification' : 'Standard Mode: Single LLM call'}
+            >
+              {useAgenticMode ? '🚀 Agentic' : '⚡ Standard'}
+            </button>
             <span className="text-sm text-gray-400">Prompt: {prompt}</span>
           </div>
         </div>
       </header>
-      
+
       <div className="flex-1 overflow-hidden">
         <div className="h-full grid grid-cols-4 gap-6 p-6">
           <div className="col-span-1 space-y-6 overflow-auto transform transition-all duration-300 hover:scale-[1.01]">
@@ -393,16 +417,16 @@ export function Builder() {
                   )}
                   {!(loading || !templateSet) && (
                     <div className='flex flex-col space-y-3'>
-                      <textarea 
-                        value={userPrompt} 
+                      <textarea
+                        value={userPrompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         className='p-4 w-full bg-gray-800/50 rounded-xl border border-gray-700/50 text-gray-300 placeholder-gray-500 focus:border-yellow-400/50 focus:ring-2 focus:ring-yellow-400/20 focus:outline-none transition-all duration-300'
                         placeholder="Enter your next instruction..."
                       />
-                      <button 
+                      <button
                         onClick={async () => {
                           if (!userPrompt.trim()) return;
-                          
+
                           const newMessage = {
                             role: "user" as "user",
                             content: userPrompt
@@ -413,13 +437,13 @@ export function Builder() {
                             const stepsResponse = await axios.post(`${BACKEND_URL}/chat`, {
                               messages: [...llmMessages, newMessage]
                             });
-                            
+
                             setLlmMessages(x => [...x, newMessage]);
                             setLlmMessages(x => [...x, {
                               role: "assistant",
                               content: stepsResponse.data.response
                             }]);
-                            
+
                             setSteps(s => {
                               const newSteps = parseXml(stepsResponse.data.response);
                               const maxId = s.length > 0 ? Math.max(...s.map(step => step.id)) : 0;
@@ -434,7 +458,7 @@ export function Builder() {
                           } finally {
                             setLoading(false);
                           }
-                        }} 
+                        }}
                         className='bg-gradient-to-r from-yellow-400 to-orange-500 text-gray-900 px-6 py-3 rounded-xl font-semibold hover:opacity-90 transform hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
                         disabled={loading || !userPrompt.trim()}
                       >
@@ -446,36 +470,34 @@ export function Builder() {
               </div>
             </div>
           </div>
-          
+
           <div className="col-span-1 transform transition-all duration-300 hover:scale-[1.01]">
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-xl border border-gray-700/50 h-full">
-              <FileExplorer 
-                files={files} 
+              <FileExplorer
+                files={files}
                 onFileSelect={setSelectedFile}
               />
             </div>
           </div>
-          
+
           <div className="col-span-2 bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-xl border border-gray-700/50 p-4 h-[calc(100vh-8rem)] transform transition-all duration-300 hover:scale-[1.01]">
             <div className="flex items-center space-x-4 mb-4">
               <button
                 onClick={() => setActiveTab('code')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${
-                  activeTab === 'code' 
-                    ? 'bg-yellow-400 text-gray-900' 
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'code'
+                  ? 'bg-yellow-400 text-gray-900'
+                  : 'text-gray-400 hover:text-gray-200'
+                  }`}
               >
                 <Code2 className="w-4 h-4" />
                 <span>Code</span>
               </button>
               <button
                 onClick={() => setActiveTab('preview')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${
-                  activeTab === 'preview' 
-                    ? 'bg-yellow-400 text-gray-900' 
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${activeTab === 'preview'
+                  ? 'bg-yellow-400 text-gray-900'
+                  : 'text-gray-400 hover:text-gray-200'
+                  }`}
               >
                 <Eye className="w-4 h-4" />
                 <span>Preview</span>
@@ -483,8 +505,8 @@ export function Builder() {
             </div>
             <div className="h-[calc(100%-4rem)]">
               {activeTab === 'code' ? (
-                <CodeEditor 
-                  file={selectedFile} 
+                <CodeEditor
+                  file={selectedFile}
                   onCodeChange={handleCodeChange}
                 />
               ) : (

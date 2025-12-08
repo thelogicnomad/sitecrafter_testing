@@ -10,6 +10,7 @@
 import { Request, Response } from "express";
 import { getSystemPrompt, BASE_PROMPT } from '../prompts';
 import { QUALITY_REQUIREMENTS, BACKEND_QUALITY_CHECKLIST, FRONTEND_QUALITY_CHECKLIST } from '../prompts/quality-enforcement';
+import { ROBUST_FRONTEND_PROMPT, FRONTEND_GENERATION_INSTRUCTIONS } from '../prompts/frontend-robust';
 import { nodeprompt } from "../deafult/node";
 import { COMPLETE_REACT_TEMPLATE } from "../deafult/react-complete";
 import OpenAI from "openai";
@@ -183,9 +184,9 @@ PROVIDE THIS ANALYSIS IN A STRUCTURED FORMAT THAT FRONTEND DEVELOPER CAN UNDERST
     console.log('STEP 3: CREATING DETAILED MERGED PROMPT');
     console.log('═'.repeat(60) + '\n');
 
-    const mergedPrompt = `${QUALITY_REQUIREMENTS}
+    const mergedPrompt = `${ROBUST_FRONTEND_PROMPT}
 
-${FRONTEND_QUALITY_CHECKLIST}
+${FRONTEND_GENERATION_INSTRUCTIONS}
 
 === BACKEND ANALYSIS & SPECIFICATION ===
 
@@ -195,95 +196,118 @@ ${backendAnalysis}
 
 ${frontendContext}
 
-=== CRITICAL FRONTEND GENERATION INSTRUCTIONS ===
-
-YOU ARE CREATING A FRONTEND THAT INTEGRATES WITH THE BACKEND DESCRIBED ABOVE.
+=== CRITICAL INTEGRATION REQUIREMENTS ===
 
 1. **UNDERSTAND THE BACKEND FIRST**:
    - Read the backend analysis above carefully
    - Understand all routes, controllers, models, and features
    - Frontend MUST use these exact routes and features
+   - NO deviations from backend specification
 
-2. **USE REACT HOOKS PROPERLY**:
-   - Use useState for component state
-   - Use useEffect for API calls and side effects
-   - Use useContext for global state (auth, user info)
-   - Use useCallback for memoized functions
-   - Use useMemo for expensive computations
-   - Create custom hooks for reusable logic
+2. **PACKAGE.JSON MUST INCLUDE**:
+   - Every package used in the code
+   - Proper versions that work together
+   - NO missing dependencies
+   - NO version conflicts
+   - Example: If using react-hook-form, add "react-hook-form": "^7.48.0"
+   - Example: If using zod, add "zod": "^3.22.4"
+   - Example: If using class-variance-authority, add "class-variance-authority": "^0.7.0"
 
-3. **API INTEGRATION (CRITICAL)**:
-   - Create an API service/utility file (api.ts or apiClient.ts)
-   - Use fetch or axios for HTTP requests
-   - For each backend endpoint, create a corresponding function
-   - Example: if backend has POST /api/v1/users/register, create registerUser() function
-   - Handle loading states, errors, and success responses
-   - Store JWT token in localStorage after login
+3. **TYPESCRIPT STRICT MODE**:
+   - Enable strict: true in tsconfig.json
+   - NO any types
+   - Proper types for all functions, props, and state
+   - NO implicit any
+   - NO unused variables
+   - NO unused imports
+
+4. **API INTEGRATION (CRITICAL)**:
+   - Create services/api.ts with all API functions
+   - Use axios with proper error handling
+   - For each backend endpoint, create corresponding function
+   - Handle loading, error, and success states
+   - Store JWT token in localStorage
    - Send Authorization header with every request
+   - NO hardcoded URLs (use environment variables)
 
-4. **AUTHENTICATION PAGES (IF BACKEND HAS AUTH)**:
+5. **AUTHENTICATION (IF BACKEND HAS AUTH)**:
    - Create Login page (/login) with email/password form
    - Create Signup page (/signup) with email/password/confirm password
    - Use useEffect to check if user is logged in
    - Redirect to login if not authenticated
    - Store token in localStorage
    - Create logout functionality
+   - Handle 401 errors by redirecting to login
 
-5. **PAGES & COMPONENTS FOR EACH BACKEND FEATURE**:
-   - For each backend model/feature, create corresponding frontend pages
-   - Example: if backend has User model with CRUD, create:
-     * User list page (GET /api/v1/users)
-     * User detail page (GET /api/v1/users/:id)
-     * Create user page (POST /api/v1/users)
-     * Edit user page (PUT /api/v1/users/:id)
-     * Delete user button (DELETE /api/v1/users/:id)
+6. **PAGES & COMPONENTS FOR EACH BACKEND FEATURE**:
+   - For each backend model, create CRUD pages
+   - Create list page (GET endpoint)
+   - Create detail page (GET by ID endpoint)
+   - Create create page (POST endpoint)
+   - Create edit page (PUT endpoint)
+   - Create delete button (DELETE endpoint)
+   - Show loading states for all operations
+   - Show error messages for all failures
+   - Show success messages for all operations
 
-6. **STATE MANAGEMENT**:
+7. **REACT HOOKS USAGE**:
    - Use useState for local component state
+   - Use useEffect for API calls and side effects
    - Use useContext for global state (auth, user, theme)
-   - Use useEffect for fetching data from backend
-   - Use useCallback to prevent unnecessary re-renders
+   - Use useCallback for event handlers
+   - Use useMemo for expensive computations
+   - Proper dependency arrays in useEffect
+   - NO missing dependencies in useEffect
+   - Proper cleanup in useEffect
 
-7. **FORMS & VALIDATION**:
-   - Create forms for creating/updating data
+8. **FORMS & VALIDATION**:
    - Use react-hook-form for form handling
    - Use zod for validation
    - Show validation errors to user
    - Show loading state while submitting
+   - Handle form errors gracefully
+   - Disable submit button while loading
+   - Show success message after submission
 
-8. **DATA DISPLAY**:
-   - Create lists/grids for displaying data from backend
-   - Use useEffect to fetch data when component mounts
-   - Show loading skeleton while fetching
-   - Show error message if fetch fails
-   - Show empty state if no data
+9. **ERROR HANDLING**:
+   - Try-catch blocks for all API calls
+   - Error state management
+   - User-friendly error messages
+   - Handle 401 (unauthorized) errors
+   - Handle 403 (forbidden) errors
+   - Handle 404 (not found) errors
+   - Handle 500 (server error) errors
+   - NO unhandled promise rejections
+   - NO unhandled errors
 
-9. **NAVIGATION**:
-   - Use React Router DOM for routing
-   - Create navigation header with links to all pages
-   - Show user info in header if logged in
-   - Show logout button in header
+10. **LOADING & EMPTY STATES**:
+    - Show loading skeleton while fetching
+    - Show empty state when no data
+    - Show error state when API fails
+    - Show success message after operations
+    - Disable buttons while loading
+    - Show retry button on error
 
-10. **DESIGN & STYLING**:
-    - Use Tailwind CSS for styling
-    - Create consistent design system
-    - Make responsive for mobile, tablet, desktop
-    - Use semantic colors and tokens
+11. **DESIGN & STYLING**:
+    - Use Tailwind CSS ONLY
+    - NO inline styles
+    - NO CSS modules
+    - Responsive design (mobile-first)
+    - Proper spacing and sizing
+    - Semantic HTML
+    - Proper color system
 
-11. **ERROR HANDLING**:
-    - Handle API errors gracefully
-    - Show user-friendly error messages
-    - Handle 401 (unauthorized) by redirecting to login
-    - Handle 403 (forbidden) by showing permission error
-    - Handle 500 (server error) by showing retry option
+12. **FILE STRUCTURE**:
+    - src/components/ui/ (reusable UI components)
+    - src/components/layout/ (layout components)
+    - src/components/context/ (context providers)
+    - src/pages/ (page components)
+    - src/hooks/ (custom hooks)
+    - src/services/ (API services)
+    - src/types/ (TypeScript types)
+    - src/utils/ (utility functions)
 
-12. **LOADING & EMPTY STATES**:
-    - Show loading skeleton while fetching data
-    - Show empty state when no data available
-    - Show error state when API call fails
-    - Show success message after creating/updating/deleting
-
-REMEMBER: This frontend MUST be fully integrated with the backend. Every page should interact with backend APIs using proper React hooks. Every feature in the backend should have a corresponding frontend page/component.`;
+GENERATE PERFECT, ERROR-FREE CODE THAT COMPILES AND RUNS WITHOUT ANY ERRORS!`;
 
     console.log(`📝 Merged prompt created: ${mergedPrompt.length} chars\n`);
 

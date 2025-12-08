@@ -78,54 +78,345 @@ Make this TypeScript-based Node.js/Express backend. Be extremely detailed with 8
     return response.choices[0].message.content || blueprint.detailedContext;
   }
 
+
   private static async generateFrontendContext(requirements: string, blueprint: ProjectBlueprint): Promise<string> {
-    const frontendPrompt = `Create ULTRA-DETAILED frontend implementation specifications for:
+    const frontendPrompt = `🤖 YOU ARE AN AUTONOMOUS AI AGENT - ELITE FULL-STACK ARCHITECT
 
-"${requirements}"
+USER'S SINGLE REQUEST: "${requirements}"
 
-Focus ONLY on React frontend. Generate comprehensive specifications including:
+🎯 YOUR AUTONOMOUS MISSION:
+From this ONE request, you will independently design and specify a complete, production-level application with 8-12 impressive features.
 
-1. **Complete Frontend File Structure**
-   - All pages, components, hooks, utils
-   - Exact file paths and purposes
+════════════════════════════════════════════════════════════════════════════
 
-2. **Page-by-Page Specifications** (CRITICAL - 3000+ words)
-   - Every page with exact content, components, layouts
-   - Hero sections with exact heading text
-   - Sample data for all grids/lists
-   - Realistic content (no placeholders)
+PHASE 1: AUTONOMOUS FEATURE IDEATION (Think Like a Product Manager)
 
-3. **Design System**
-   - Beautiful color palette (HSL values)
-   - Typography (2 font families)
-   - Semantic tokens
-   - Animations and transitions
+Analyze the user's request and brainstorm 8-12 features that would make this application IMPRESSIVE and COMPLETE.
 
-4. **Component Specifications**
-   - Props, state, TypeScript interfaces
-   - Accessibility features
+Categories to consider:
+📌 CORE FEATURES (Must-have, 3-4 features):
+   - What are the essential functionalities?
+   - What makes this application useful?
 
-5. **Routing & Navigation**
-   - React Router DOM configuration
-   - All routes and protection rules
+🎨 ENHANCEMENT FEATURES (Nice-to-have, 2-3 features):
+   - What would improve user experience?
+   - What additional value can we provide?
 
-6. **Dependencies**
-   - Complete package.json with React, Router, Framer Motion, etc.
+✨ WOW FACTORS (Impressive, 2-3 features):
+   - What cutting-edge features follow 2024-2025 web trends?
+   - What would make users say "Wow, this is professional!"?
+   - Examples: AI chatbot, real-time updates, AR preview, advanced animations, personalization
 
-Make this production-ready React 19 + TypeScript. Be extremely detailed with 8000+ words.`;
+🔧 TECHNICAL FEATURES (Behind-the-scenes, 1-2 features):
+   - Authentication/Authorization
+   - Analytics/Monitoring
+   - Performance optimization
+   - SEO optimization
 
+EXAMPLE FOR "create a bakery website":
+✅ CORE: Product catalog with categories, Shopping cart, Order placement, Store locator
+✅ ENHANCEMENT: Customer reviews, Recipe blog, Newsletter signup
+✅ WOW: 3D cake customizer with AR preview, Real-time baking status tracker, AI-powered cake recommendation
+✅ TECHNICAL: User authentication for order tracking, SEO optimization
+
+════════════════════════════════════════════════════════════════════════════
+
+PHASE 2: MODERN DESIGN TRENDS (2024-2025)
+
+Apply current web design trends:
+🎨 VISUAL TRENDS:
+- Glassmorphism and blur effects
+- Gradient mesh backgrounds
+- 3D elements and depth
+- Micro-interactions and smooth animations
+- Dark mode with vibrant accent colors
+- Neumorphism for buttons and cards
+
+🎭 UI/UX PATTERNS:
+- Hero sections with animated text/gradients
+- Sticky/floating navigation with backdrop blur
+- Card-based layouts with hover effects  
+- Scroll-triggered animations
+- Skeleton loaders for async content
+- Toast notifications for user feedback
+
+🚀 MODERN TECH:
+- Framer Motion for animations
+- React Query for data fetching
+- Zustand for state management
+- React Hook Form + Zod for forms
+- Lucide React for icons
+
+════════════════════════════════════════════════════════════════════════════
+
+PHASE 3: COMPLETE TECHNICAL SPECIFICATION (8000+ WORDS MINIMUM)
+
+Generate ULTRA-DETAILED specifications:
+
+A. FILE STRUCTURE (List EVERY file):
+\`\`\`
+src/
+  pages/
+    HomePage.tsx - Description
+    [Feature1]Page.tsx - Description
+    ... (list ALL pages)
+  components/
+    layout/
+      Header.tsx - Sticky nav with blur
+      Footer.tsx - Multi-column footer
+    ui/
+      Button.tsx - Variants: primary, secondary, ghost
+      Card.tsx - With hover effects
+      ... (list ALL components)
+    features/
+      [Feature1]/
+        [Feature1]Component.tsx
+      ... (for each feature)
+  hooks/
+    useAuth.ts
+    useFetch.ts
+    ... (list ALL hooks)
+  lib/
+    utils.ts
+    api.ts
+  types/
+    index.ts
+\`\`\`
+
+B. PAGE SPECIFICATIONS (For EACH page):
+
+**[PageName] - /route**
+Purpose: [Detailed description]
+
+Layout Structure:
+1. Hero Section:
+   - Heading: "[Exact text]"
+   - Subheading: "[Exact text]"
+   - CTA buttons: "[Button texts]"
+   - Background: [gradient/image description]
+   - Animation: [entrance animation details]
+
+2. [Section 2 Name]:
+   - Content: [Exact description]
+   - Components: [List specific components]
+   - Data: [Sample data - 12+ items for catalogs]
+   - Layout: [Grid/Flex details]
+
+3. [Continue for all sections...]
+
+Sample Data for [PageName]:
+\`\`\`typescript
+const sampleData = [
+  {
+    id: 1,
+    title: "[Realistic title]",
+    description: "[150-200 word realistic description]",
+    price: 49.99,
+    category: "[category]",
+    image: "[description]",
+    rating: 4.8,
+    reviews: 127
+  },
+  // ... minimum 12 items with unique, realistic data
+];
+\`\`\`
+
+C. COMPONENT SPECIFICATIONS (For EACH component):
+
+**ComponentName.tsx**
+Purpose: [Description]
+
+TypeScript Interface:
+\`\`\`typescript
+interface ComponentNameProps {
+  title: string;
+  description?: string;
+  onClick?: () => void;
+  variant?: 'primary' | 'secondary';
+  isLoading?: boolean;
+}
+\`\`\`
+
+State Management:
+- Local state: [list useState hooks]
+- Global state: [list Zustand stores if needed]
+
+Styling Approach:
+- TailwindCSS classes: [key classes]
+- Animations: [Framer Motion variants]
+- Responsive: [breakpoint behavior]
+
+Accessibility:
+- ARIA labels
+- Keyboard navigation
+- Focus management
+
+D. DESIGN SYSTEM:
+
+Color Palette (HSL values for dark mode support):
+\`\`\`css
+--primary: 262 83% 58%        /* Vibrant purple */
+--primary-light: 262 90% 65%
+--primary-dark: 262 80% 45%
+--accent: 142 76% 36%          /* Emerald green */
+--background: 224 71% 4%       /* Deep dark */
+--surface: 223 47% 11%         /* Card background */
+--text: 0 0% 98%               /* Almost white */
+--text-muted: 215 20% 65%      /* Muted text */
+\`\`\`
+
+Typography:
+- Headings: "Inter" (Google Fonts) - font-display, weights: 700, 800
+- Body: "Inter" - weights: 400, 500, 600
+- Monospace: "Fira Code" for code snippets
+
+Spacing Scale:
+- xs: 0.25rem, sm: 0.5rem, md: 1rem, lg: 1.5rem, xl: 2rem, 2xl: 3rem
+
+Animation Tokens:
+- Duration: fast: 150ms, normal: 300ms, slow: 500ms
+- Easing: ease-out for entrances, ease-in-out for movements
+
+E. ROUTING CONFIGURATION:
+
+Routes:
+- / → HomePage
+- /[feature1] → [Feature1]Page
+- /[feature2] → [Feature2]Page
+... (list ALL routes)
+
+Protected Routes: [if applicable]
+- /dashboard → requires authentication
+
+F. STATE MANAGEMENT:
+
+Zustand Stores:
+\`\`\`typescript
+// Example store
+interface AuthStore {
+  user: User | null;
+  login: (credentials) => Promise<void>;
+  logout: () => void;
+}
+\`\`\`
+
+React Query Queries:
+- useProducts() - fetches product list
+- useProduct(id) - fetches single product
+... (list all queries)
+
+G. FORMS \u0026 VALIDATION:
+
+For each form, specify:
+- Fields and types
+- Zod validation schema
+- Error messages
+- Submit handlers
+- Loading states
+
+Example:
+\`\`\`typescript
+const contactSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  message: z.string().min(10, "Message must be at least 10 characters")
+});
+\`\`\`
+
+H. API INTEGRATION (Even if no backend exists):
+
+Create mock API structure:
+\`\`\`typescript
+// src/lib/api.ts
+export const api = {
+  products: {
+    getAll: async () => { /* implementation */ },
+    getById: async (id) => { /* implementation */ },
+    create: async (data) => { /* implementation */ }
+  },
+  auth: {
+    login: async (credentials) => { /* implementation */ }
+  }
+};
+\`\`\`
+
+I. DEPENDENCIES (Complete package.json):
+
+List EVERY package you'll use with exact Nov 2025 versions:
+- Core: react ^18.3.1, react-dom ^18.3.1
+- Routing: react-router-dom ^7.1.1
+- Forms: react-hook-form ^7.54.0, zod ^3.24.1, @hookform/resolvers ^3.9.1
+- Animation: framer-motion ^11.14.4
+- State: zustand ^5.0.2, @tanstack/react-query ^5.62.2
+- UI: lucide-react ^0.460.0
+- Utils: clsx ^2.1.1, tailwind-merge ^2.5.5, date-fns ^4.1.0
+- HTTP: axios ^1.7.9 (if API calls)
+... (include ALL packages you import)
+
+════════════════════════════════════════════════════════════════════════════
+
+CRITICAL REQUIREMENTS - ZERO TOLERANCE:
+
+❌ ABSOLUTELY FORBIDDEN:
+- NO "TODO" or "will implement later"
+- NO "placeholder" or "sample text goes here"
+- NO "Lorem ipsum" or generic content
+- NO partial implementations
+- NO missing features from your ideation
+
+✅ ABSOLUTELY REQUIRED:
+- REAL sample data (minimum 12 items for any catalog/list)
+- COMPLETE form validation with Zod schemas
+- WORKING state management setup
+- REALISTIC content in all text fields
+- FULL implementations for all features you proposed
+- Modern UI following 2024-2025 trends
+- Production-ready code quality
+
+════════════════════════════════════════════════════════════════════════════
+
+OUTPUT FORMAT:
+
+Write an 8000+ word specification document covering ALL sections above in extreme detail.
+
+Use this structure:
+# [Project Name] - Technical Specification
+
+## Executive Summary
+[Brief overview of the application]
+
+## Autonomous Feature Selection
+[List the 8-12 features you decided to implement with justification]
+
+## Design Philosophy
+[Modern design trends applied]
+
+## Technical Architecture
+[High-level architecture]
+
+## Detailed Specifications
+[All sections A-I above in full detail]
+
+## Implementation Notes
+[Any important technical decisions]
+
+BEGIN YOUR ULTRA-DETAILED SPECIFICATION NOW:`;
+
+    // Make the API call with the autonomous planning prompt
     const response = await openai2.chat.completions.create({
       model: PLANNING_MODEL,
       messages: [
         {
           role: "system",
-          content: "You are a frontend architecture expert. Generate ultra-detailed React specifications."
+          content: "You are an autonomous AI agent - an elite full-stack architect. You independently ideate features, make design decisions, and create ultra-detailed specifications for production-ready applications following 2024-2025 trends."
         },
         {
           role: "user",
           content: frontendPrompt
         }
-      ]
+      ],
+      temperature: 0.8, // Higher temperature for more creative feature ideation
+      max_tokens: 16000 // Allow for very detailed specifications
     });
 
     let frontendContext = response.choices[0].message.content || blueprint.detailedContext;
@@ -134,47 +425,49 @@ Make this production-ready React 19 + TypeScript. Be extremely detailed with 800
     console.log('   - Selecting UI components...');
     const uiSelection = await UIService.selectComponents(requirements);
     if (uiSelection.selectedComponents.length > 0) {
-      frontendContext += uiSelection.formattedForPrompt;
+      frontendContext += "\n\n" + uiSelection.formattedForPrompt;
       console.log(`   - Added ${uiSelection.selectedComponents.length} UI components`);
     }
 
     return frontendContext;
   }
 
+
+
   private static analyzeProject(requirements: string): ProjectAnalysis {
     const reqLower = requirements.toLowerCase();
-    
+
     // IMPROVED project type detection (matches index.ts logic)
-    
+
     // Check for explicit frontend indicators
-    const isFrontendOnly = (reqLower.includes('frontend only') || 
-                            reqLower.includes('ui only') || 
-                            reqLower.includes('react app') ||
-                            reqLower.includes('react only')) &&
-                           !reqLower.includes('backend') && 
-                           !reqLower.includes('api');
-    
+    const isFrontendOnly = (reqLower.includes('frontend only') ||
+      reqLower.includes('ui only') ||
+      reqLower.includes('react app') ||
+      reqLower.includes('react only')) &&
+      !reqLower.includes('backend') &&
+      !reqLower.includes('api');
+
     // Check for explicit backend indicators
-    const isBackendOnly = (reqLower.includes('backend') || 
-                           reqLower.includes('back-end') ||
-                           reqLower.includes('api') ||
-                           reqLower.includes('server') ||
-                           reqLower.includes('node.js') ||
-                           reqLower.includes('express') ||
-                           reqLower.includes('database')) &&
-                          !reqLower.includes('frontend') && 
-                          !reqLower.includes('react') &&
-                          !reqLower.includes('ui component');
-    
+    const isBackendOnly = (reqLower.includes('backend') ||
+      reqLower.includes('back-end') ||
+      reqLower.includes('api') ||
+      reqLower.includes('server') ||
+      reqLower.includes('node.js') ||
+      reqLower.includes('express') ||
+      reqLower.includes('database')) &&
+      !reqLower.includes('frontend') &&
+      !reqLower.includes('react') &&
+      !reqLower.includes('ui component');
+
     // Check for fullstack indicators
-    const isFullstack = reqLower.includes('fullstack') || 
-                        reqLower.includes('full-stack') ||
-                        reqLower.includes('full stack') ||
-                        (reqLower.includes('frontend') && reqLower.includes('backend'));
-    
+    const isFullstack = reqLower.includes('fullstack') ||
+      reqLower.includes('full-stack') ||
+      reqLower.includes('full stack') ||
+      (reqLower.includes('frontend') && reqLower.includes('backend'));
+
     let type: 'frontend' | 'backend' | 'fullstack';
     let nodeCount: number;
-    
+
     // Determine project type with clear priority
     if (isBackendOnly) {
       type = 'backend';
@@ -190,10 +483,10 @@ Make this production-ready React 19 + TypeScript. Be extremely detailed with 800
       nodeCount = 35; // Production-level frontend with MULTIPLE pages
       console.log('[Planning] Detected/Defaulted to FRONTEND project');
     }
-    
+
     // Always use complex/production-level
     const complexity: 'complex' = 'complex';
-    
+
     return {
       type,
       nodeCount,
@@ -214,7 +507,7 @@ FRONTEND-ONLY PROJECT (MULTI-PAGE REQUIRED):
 - Categories: Frontend only
 - Create ${nodeCount} nodes for comprehensive multi-page frontend
 - Example pages: Home, Features, Pricing, About, Contact, Dashboard, Profile`,
-      
+
       backend: `
 BACKEND-ONLY PROJECT:
 - Design ONLY backend architecture (APIs, services, database, authentication)
@@ -223,7 +516,7 @@ BACKEND-ONLY PROJECT:
 - Node types: api, service, database, auth, middleware
 - Categories: Backend, Database, Auth
 - Create ${nodeCount} nodes for backend architecture`,
-      
+
       fullstack: `
 FULLSTACK PROJECT:
 - Design COMPLETE architecture with both frontend AND backend
@@ -571,7 +864,7 @@ REMEMBER: The detailedContext is passed to code generation AI. It must be SO com
 4. Are there NO trailing commas in the JSON?
 5. Did you include details for EVERY node and edge in Section 12?`;
 
-}
+  }
 
   static async generateBlueprint(
     requirements: string,
@@ -585,7 +878,7 @@ REMEMBER: The detailedContext is passed to code generation AI. It must be SO com
       let projectType: 'frontend' | 'backend' | 'fullstack';
       let nodeCount: number;
       let complexity: 'complex';
-      
+
       if (projectTypeFromFrontend) {
         // Use frontend selection (no keyword detection)
         projectType = projectTypeFromFrontend;
@@ -1036,14 +1329,14 @@ REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-
 
       console.log('Received response, parsing...');
       const blueprint = OutputParser.extractProjectBlueprint(rawOutput);
-      
+
       if (!blueprint) {
         if (retryCount < MAX_RETRIES) {
           console.log(`Parsing failed, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
           await new Promise(resolve => setTimeout(resolve, 1500));
           return this.generateBlueprint(requirements, retryCount + 1, projectTypeFromFrontend);
         }
-        
+
         throw new Error('Failed to parse blueprint after multiple attempts');
       }
 
@@ -1056,34 +1349,34 @@ REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-
       // For FULLSTACK projects, generate TWO separate contexts
       if (projectType === 'fullstack') {
         console.log('\n🔄 FULLSTACK PROJECT: Generating separate backend and frontend contexts...');
-        
+
         // Generate backend context
         console.log('\n📦 Generating BACKEND context...');
         const backendContext = await this.generateBackendContext(requirements, blueprint);
         blueprint.backendContext = backendContext;
         console.log(`✅ Backend context: ${backendContext.length} chars`);
-        
+
         // Generate frontend context (will be enriched with backend knowledge later)
         console.log('\n🎨 Generating FRONTEND context...');
         const frontendContext = await this.generateFrontendContext(requirements, blueprint);
         blueprint.frontendContext = frontendContext;
         console.log(`✅ Frontend context: ${frontendContext.length} chars`);
-        
+
         // Set detailedContext to backend for now (Builder will use it first)
         blueprint.detailedContext = backendContext;
-        
+
       } else if (projectType === 'frontend') {
         console.log('\n🎨 Selecting UI components to enrich the blueprint...');
-        
+
         const detailedContextLengthBefore = blueprint.detailedContext.length;
         console.log(`📊 detailedContext length BEFORE appending UI: ${detailedContextLengthBefore} chars`);
-        
+
         const uiSelection = await UIService.selectComponents(requirements);
-        
+
         if (uiSelection.selectedComponents.length > 0) {
           // Append UI components to detailedContext at the end
           blueprint.detailedContext += uiSelection.formattedForPrompt;
-          
+
           const detailedContextLengthAfter = blueprint.detailedContext.length;
           console.log(`\n✅ APPEND OPERATION COMPLETE:`);
           console.log(`   - Added ${uiSelection.selectedComponents.length} UI components to detailedContext`);
@@ -1091,7 +1384,7 @@ REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-
           console.log(`   - detailedContext length BEFORE: ${detailedContextLengthBefore} chars`);
           console.log(`   - detailedContext length AFTER: ${detailedContextLengthAfter} chars`);
           console.log(`   - UI components added: ${detailedContextLengthAfter - detailedContextLengthBefore} chars`);
-          
+
           // Show last 500 chars to verify UI components are at the end
           console.log(`\n📋 LAST 500 CHARS OF detailedContext (showing UI components):}`);
           console.log('─'.repeat(80));
@@ -1109,16 +1402,16 @@ REMEMBER: This blueprint must enable generation of ENTERPRISE-GRADE, PRODUCTION-
 
     } catch (error: any) {
       console.error('Error:', error.message);
-      
+
       if (retryCount < MAX_RETRIES) {
         console.log(`Error occurred, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
         await new Promise(resolve => setTimeout(resolve, 1500));
         return this.generateBlueprint(requirements, retryCount + 1, projectTypeFromFrontend);
       }
-      
-      return { 
-        success: false, 
-        error: `Failed after ${MAX_RETRIES + 1} attempts: ${error.message}` 
+
+      return {
+        success: false,
+        error: `Failed after ${MAX_RETRIES + 1} attempts: ${error.message}`
       };
     }
   }

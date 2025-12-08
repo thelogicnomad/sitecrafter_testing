@@ -4,7 +4,7 @@ import { text } from '../ui/components';
 
 const client = new OpenAI({
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  apiKey: process.env.gemini2
+  apiKey: process.env.gemini3
 });
 
 const UI_SELECTION_MODEL = "gemini-2.5-flash-lite-preview-09-2025";
@@ -38,14 +38,14 @@ export class UIService {
   private static categorizeComponent(name: string, description: string): string {
     const nameLower = name.toLowerCase();
     const descLower = description.toLowerCase();
-    
+
     if (nameLower.includes('text') || descLower.includes('text animation')) {
       return 'text-effect';
     } else if (nameLower.includes('cursor') || descLower.includes('cursor')) {
       return 'cursor-effect';
-    } else if (nameLower.includes('background') || descLower.includes('background') || 
-               nameLower.includes('aurora') || nameLower.includes('plasma') || 
-               nameLower.includes('galaxy') || nameLower.includes('particles')) {
+    } else if (nameLower.includes('background') || descLower.includes('background') ||
+      nameLower.includes('aurora') || nameLower.includes('plasma') ||
+      nameLower.includes('galaxy') || nameLower.includes('particles')) {
       return 'background';
     } else if (nameLower.includes('card') || nameLower.includes('profile')) {
       return 'card';
@@ -116,27 +116,27 @@ CRITICAL REQUIREMENTS:
       });
 
       let content = response.choices[0]?.message?.content || '{"selectedComponents": []}';
-      
+
       // Strip markdown code blocks if present
       content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      
+
       console.log('📡 LLM Selection Response:', content);
-      
+
       const parsed = JSON.parse(content);
       const selectedComponentNames = parsed.selectedComponents || [];
 
       // Get full component details
       const selectedComponents = this.getComponentDetails(selectedComponentNames);
-      
+
       console.log(`✅ Selected ${selectedComponents.length} components:`, selectedComponents.map(c => c.name));
 
       // Format for prompt injection
       const formattedForPrompt = this.formatSelectedComponentsForPrompt(selectedComponents);
-      
+
       console.log('\n📝 FORMATTED UI COMPONENTS OUTPUT (to be appended to detailedContext):');
-      console.log('=' .repeat(80));
+      console.log('='.repeat(80));
       console.log(formattedForPrompt);
-      console.log('=' .repeat(80));
+      console.log('='.repeat(80));
       console.log(`✅ Total length of UI components string: ${formattedForPrompt.length} chars\n`);
 
       const result = {
