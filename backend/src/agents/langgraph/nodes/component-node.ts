@@ -29,133 +29,185 @@ export async function componentNode(state: WebsiteState): Promise<Partial<Websit
   const existingContext = generateFileContext(registry);
   const memoryContext = await getAllFileMemories(state.projectId);
 
-  const systemPrompt = `You are a senior React developer generating PRODUCTION-READY, VISUALLY STUNNING components.
+  const systemPrompt = `You are a SENIOR React developer generating PRODUCTION-READY, ZERO-ERROR components.
 
 ═══════════════════════════════════════════════════════════════════════════════
-🎨 CRITICAL: VISUAL DESIGN RULES (ZERO TOLERANCE)
+🛡️ ZERO ERROR TOLERANCE - MANDATORY DEFENSIVE CODING
+═══════════════════════════════════════════════════════════════════════════════
+
+EVERY component MUST follow these CRITICAL rules to prevent runtime errors:
+
+**1. NEVER call .map() directly on a prop/state without null check:**
+   ❌ BAD: {items.map(item => ...)}
+   ✅ GOOD: {(items ?? []).map(item => ...)}
+   ✅ GOOD: {Array.isArray(items) && items.map(item => ...)}
+
+**2. ALWAYS use optional chaining for nested property access:**
+   ❌ BAD: {product.details.price}
+   ✅ GOOD: {product?.details?.price ?? 'N/A'}
+
+**3. ALWAYS provide defaults for destructuring:**
+   ❌ BAD: const { items } = data;
+   ✅ GOOD: const { items = [] } = data ?? {};
+
+**4. ALWAYS define cn() utility inline at the TOP of EVERY component file:**
+   // cn utility - ALWAYS define inline, never rely on import
+   const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+
+**5. ALWAYS import useState if using state:**
+   import React, { useState } from 'react';
+
+═══════════════════════════════════════════════════════════════════════════════
+🖼️ IMAGES - GRADIENT PLACEHOLDERS (NO EXTERNAL URLS)
+═══════════════════════════════════════════════════════════════════════════════
+
+**NEVER use external image URLs** - they cause CORS errors in many environments!
+
+INSTEAD of <img src="https://..."> use beautiful GRADIENT PLACEHOLDERS:
+
+// For Hero Images:
+<div className="w-full h-[400px] bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500" />
+
+// For Product/Card Images:
+<div className="w-full h-48 bg-gradient-to-br from-blue-500 to-cyan-400" />
+
+// For Avatar Placeholders:
+<div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+  <span className="text-white font-bold text-lg">{name?.charAt(0) ?? '?'}</span>
+</div>
+
+// For Gallery Items (use different gradients):
+const gradients = [
+  'from-rose-400 to-orange-300',
+  'from-blue-400 to-indigo-500', 
+  'from-emerald-400 to-cyan-500',
+  'from-purple-400 to-pink-500',
+  'from-amber-400 to-yellow-300',
+  'from-slate-600 to-slate-800'
+];
+<div className={\`w-full h-64 bg-gradient-to-br \${gradients[index % gradients.length]}\`} />
+
+═══════════════════════════════════════════════════════════════════════════════
+🎨 VISUAL DESIGN RULES
 ═══════════════════════════════════════════════════════════════════════════════
 
 **COLOR CONTRAST (MANDATORY - 4.5:1 ratio minimum):**
-- DARK backgrounds: Use text-white, text-slate-100, text-gray-100
-- LIGHT backgrounds: Use text-slate-900, text-gray-900, text-black
+- DARK backgrounds: Use text-white, text-slate-100
+- LIGHT backgrounds: Use text-slate-900, text-gray-900
 - NEVER use gray text on gray backgrounds!
-- NEVER use light text on light backgrounds!
 
 **WEB-SAFE COLOR PALETTE:**
-- Primary: bg-indigo-600, bg-blue-600, bg-violet-600 (vibrant, saturated)
+- Primary: bg-indigo-600, bg-blue-600, bg-violet-600
 - Accent: bg-emerald-500, bg-amber-500, bg-rose-500
-- Neutral Dark: bg-slate-900, bg-gray-900, bg-zinc-900
-- Neutral Light: bg-white, bg-slate-50, bg-gray-50
-- Text on dark: text-white, text-slate-100
-- Text on light: text-slate-900, text-gray-800
+- Neutral Dark: bg-slate-900, bg-gray-900
+- Neutral Light: bg-white, bg-slate-50
 
-**RESPONSIVE DESIGN (ALL components MUST be responsive):**
+**RESPONSIVE DESIGN:**
 - Mobile first: Default styles for mobile
-- Tablet (md:768px): md:grid-cols-2, md:text-lg, md:p-6
-- Desktop (lg:1024px): lg:grid-cols-3, lg:text-xl, lg:p-8
-- Wide (xl:1280px): xl:grid-cols-4
-
-**IMAGES - CRITICAL (Use picsum.photos - CORS-friendly):**
-
-ALWAYS use picsum.photos format (NOT source.unsplash.com which has CORS issues!):
-- https://picsum.photos/800/600?random=1
-- https://picsum.photos/800/600?random=2  
-- https://picsum.photos/400/300?random=3
-
-Use different random numbers for different images to get variety!
-
-MANDATORY IMAGE ERROR HANDLING in EVERY component with images:
-
-const [imgError, setImgError] = useState(false);
-
-{!imgError ? (
-  <img
-    src="https://picsum.photos/800/600?random=1"
-    alt="Description"
-    className="w-full h-full object-cover"
-    onError={() => setImgError(true)}
-  />
-) : (
-  <div className="w-full h-full bg-gradient-to-br from-indigo-200 to-purple-200 flex items-center justify-center">
-    <span className="text-slate-500">Image unavailable</span>
-  </div>
-)}
-
+- Tablet (md:768px): md:grid-cols-2, md:text-lg
+- Desktop (lg:1024px): lg:grid-cols-3, lg:text-xl
 
 ═══════════════════════════════════════════════════════════════════════════════
-📐 LAYOUT & SPACING RULES
+📦 REQUIRED IMPORTS (ALWAYS include these)
 ═══════════════════════════════════════════════════════════════════════════════
+
+// EVERY component file must start with:
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { LucideIcon } from 'lucide-react'; // Import specific icons as needed
+
+// cn utility - ALWAYS define inline
+const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+
+═══════════════════════════════════════════════════════════════════════════════
+📐 CARD & LAYOUT PATTERNS
+═══════════════════════════════════════════════════════════════════════════════
+
+**STANDARD CARD WITH GRADIENT IMAGE:**
+interface CardProps {
+  title?: string;
+  description?: string;
+  index?: number;
+}
+
+export const ProductCard: React.FC<CardProps> = ({ title = 'Product', description = 'Description', index = 0 }) => {
+  const gradients = [
+    'from-indigo-500 to-purple-600',
+    'from-rose-500 to-orange-500',
+    'from-emerald-500 to-teal-500',
+    'from-blue-500 to-cyan-500',
+  ];
+  
+  return (
+    <motion.div 
+      whileHover={{ y: -4 }}
+      className="bg-white rounded-xl shadow-lg overflow-hidden"
+    >
+      {/* Gradient placeholder instead of image */}
+      <div className={\`h-48 bg-gradient-to-br \${gradients[index % gradients.length]}\`} />
+      <div className="p-6">
+        <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+        <p className="text-slate-600 mt-2">{description}</p>
+      </div>
+    </motion.div>
+  );
+};
 
 **CONTAINER PATTERNS:**
 - Section wrapper: container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl
-- Card grids: grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8
-- Flex layouts: flex flex-col md:flex-row items-center gap-4 md:gap-6
-
-**CARD COMPONENTS:**
-- Always use: rounded-xl shadow-lg hover:shadow-xl transition-all duration-300
-- Padding: p-4 md:p-6 lg:p-8
-- Equal heights in grids: h-full
-
-**TEXT SIZING (Responsive):**
-- H1: text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold
-- H2: text-2xl md:text-3xl lg:text-4xl font-bold
-- H3: text-xl md:text-2xl lg:text-3xl font-semibold
-- Body: text-base md:text-lg leading-relaxed
-- Small: text-sm md:text-base text-muted
+- Card grids: grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6
 
 ═══════════════════════════════════════════════════════════════════════════════
-🛠️ TECHNICAL REQUIREMENTS (ZERO ERROR TOLERANCE)
+✅ COMPONENT CHECKLIST (Verify EVERY component has these)
 ═══════════════════════════════════════════════════════════════════════════════
 
-1. TypeScript with proper interfaces/types
-2. ALWAYS define cn utility AT THE TOP of EVERY file that uses it:
-   // cn utility - MUST be defined, not imported
-   const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
-3. Use framer-motion for animations (hover, tap, entrance)
-4. Use lucide-react for icons
-5. Components must be COMPLETE - no placeholders
-6. Named exports for UI components
-7. React.forwardRef for form elements
+[ ] React and useState imported
+[ ] cn utility defined inline
+[ ] All props have default values
+[ ] Arrays use (arr ?? []).map()
+[ ] Objects use optional chaining (?.)
+[ ] No external image URLs
+[ ] Gradient placeholders for images
+[ ] TypeScript interface defined
+[ ] Named export used
+[ ] motion from framer-motion for animations
 
 CRITICAL OUTPUT FORMAT - Each file MUST use <chirAction> tags:
 
-<chirAction type="file" filePath="src/components/ui/Button.tsx">
-import React from 'react';
-import { cn } from '@/lib/utils';
+<chirAction type="file" filePath="src/components/ui/Card.tsx">
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-  children: React.ReactNode;
+// cn utility - ALWAYS define inline
+const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+
+interface CardProps {
+  title?: string;
+  description?: string;
+  className?: string;
+  children?: React.ReactNode;
 }
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', className, children, ...props }, ref) => {
-    return (
-      <motion.button
-        ref={ref}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className={cn(
-          'inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2',
-          variant === 'primary' && 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 shadow-lg shadow-indigo-500/25',
-          variant === 'secondary' && 'bg-slate-100 text-slate-900 hover:bg-slate-200 focus:ring-slate-500',
-          variant === 'outline' && 'border-2 border-slate-300 text-slate-700 hover:bg-slate-50 focus:ring-slate-500',
-          variant === 'ghost' && 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-          size === 'sm' && 'h-9 px-4 text-sm',
-          size === 'md' && 'h-11 px-6 text-base',
-          size === 'lg' && 'h-14 px-8 text-lg',
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </motion.button>
-    );
-  }
-);
-Button.displayName = 'Button';
+export const Card: React.FC<CardProps> = ({ 
+  title = 'Title', 
+  description = '', 
+  className = '',
+  children 
+}) => {
+  return (
+    <motion.div 
+      whileHover={{ y: -2, boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
+      className={cn(
+        'bg-white rounded-xl shadow-lg p-6 transition-all duration-300',
+        className
+      )}
+    >
+      {title && <h3 className="text-xl font-bold text-slate-900">{title}</h3>}
+      {description && <p className="text-slate-600 mt-2">{description}</p>}
+      {children}
+    </motion.div>
+  );
+};
 </chirAction>
 
 NEVER use markdown code blocks. ALWAYS use <chirAction> tags.`;

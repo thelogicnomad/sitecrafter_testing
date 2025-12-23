@@ -85,12 +85,45 @@ export default App;`;
   addFile(files, registry, 'src/App.tsx', appTsx, 'core');
   console.log('   ✅ App.tsx created (NO BrowserRouter - Routes only)');
 
-  // 4. Generate lib/utils.ts
-  const utilsTsx = `import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+  // 4. Generate lib/utils.ts - with standalone cn that works without dependencies
+  const utilsTsx = `// Utility functions for className merging
+// This cn function works standalone without any dependencies
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+/**
+ * Combines class names conditionally
+ * @example cn('base', isActive && 'active', className)
+ */
+export function cn(...inputs: (string | boolean | undefined | null)[]): string {
+  return inputs.filter(Boolean).join(' ');
+}
+
+/**
+ * Format currency values
+ */
+export function formatCurrency(amount: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(amount);
+}
+
+/**
+ * Format date values
+ */
+export function formatDate(date: Date | string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date(date));
+}
+
+/**
+ * Truncate text with ellipsis
+ */
+export function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trim() + '...';
 }`;
   addFile(files, registry, 'src/lib/utils.ts', utilsTsx, 'core');
 

@@ -31,133 +31,202 @@ export async function pageNode(state: WebsiteState): Promise<Partial<WebsiteStat
 
   console.log(`   🧠 Memory context loaded: ${memoryContext.length} chars`);
 
-  const systemPrompt = `You are a SENIOR FRONTEND ARCHITECT generating PRODUCTION-READY page components that look STUNNING.
+  const systemPrompt = `You are a SENIOR FRONTEND ARCHITECT generating PRODUCTION-READY, ZERO-ERROR page components.
 
 ═══════════════════════════════════════════════════════════════════════════════
-🎨 CRITICAL: VISUAL DESIGN RULES (ZERO TOLERANCE FOR POOR UI)
+🛡️ ZERO ERROR TOLERANCE - MANDATORY DEFENSIVE CODING
 ═══════════════════════════════════════════════════════════════════════════════
 
-**COLOR CONTRAST IS MANDATORY:**
+EVERY page MUST follow these CRITICAL rules to prevent runtime errors:
 
-Dark Mode Sections (bg-slate-900, bg-gray-900):
-- Heading text: text-white or text-slate-50
-- Body text: text-slate-300 or text-gray-300
-- Muted text: text-slate-400
+**1. NEVER call .map() directly without null check:**
+   ❌ BAD: {products.map(p => ...)}
+   ✅ GOOD: {(products ?? []).map(p => ...)}
 
-Light Mode Sections (bg-white, bg-slate-50):
-- Heading text: text-slate-900 or text-gray-900
-- Body text: text-slate-700 or text-gray-700
-- Muted text: text-slate-500
+**2. ALWAYS use optional chaining:**
+   ❌ BAD: {item.details.price}
+   ✅ GOOD: {item?.details?.price ?? 'N/A'}
 
-❌ NEVER DO THIS:
-- text-gray-300 on bg-white (invisible!)
-- text-slate-200 on bg-slate-100 (no contrast!)
-- text-gray-400 on bg-gray-100 (can't read!)
+**3. ALWAYS provide defaults for props:**
+   ❌ BAD: const HomePage = ({ items }) => ...
+   ✅ GOOD: const HomePage = ({ items = [] }) => ...
 
-✅ ALWAYS DO THIS:
-- text-white on bg-slate-900 ✓
-- text-slate-900 on bg-white ✓
-- text-slate-300 on bg-gray-800 ✓
+**4. DEFINE cn() utility inline in EVERY file that uses conditional classes:**
+   const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+
+**5. ALWAYS import useState if using state:**
+   import React, { useState } from 'react';
 
 ═══════════════════════════════════════════════════════════════════════════════
-📐 RESPONSIVE LAYOUT PATTERNS (MANDATORY)
+🖼️ IMAGES - USE GRADIENT PLACEHOLDERS (NO EXTERNAL URLS!)
 ═══════════════════════════════════════════════════════════════════════════════
+
+**NEVER use external image URLs** - they cause CORS errors!
+
+USE GRADIENT PLACEHOLDERS instead:
+
+// Hero backgrounds:
+<section className="min-h-[80vh] bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900">
+
+// Product/Card images:
+const gradients = [
+  'from-indigo-500 to-purple-600',
+  'from-rose-500 to-orange-500',
+  'from-emerald-500 to-teal-500',
+  'from-blue-500 to-cyan-500',
+];
+<div className={\`h-48 bg-gradient-to-br \${gradients[index % gradients.length]}\`} />
+
+// Avatar placeholders:
+<div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+  <span className="text-white font-bold">{name?.charAt(0) ?? '?'}</span>
+</div>
+
+═══════════════════════════════════════════════════════════════════════════════
+🎨 VISUAL DESIGN RULES
+═══════════════════════════════════════════════════════════════════════════════
+
+**COLOR CONTRAST:**
+- Dark backgrounds (slate-900): text-white, text-slate-100
+- Light backgrounds (white): text-slate-900, text-gray-800
+- NEVER use light text on light backgrounds!
 
 **SECTION STRUCTURE:**
-<section className="py-16 md:py-20 lg:py-24 bg-white">
+<section className="py-16 md:py-24 bg-white">
   <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
     {/* Content */}
   </div>
 </section>
 
 **HERO SECTIONS:**
-<section className="relative min-h-[80vh] flex items-center py-20 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
-  <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-    <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white mb-6">
-      Main Heading Here
-    </h1>
-    <p className="text-lg md:text-xl lg:text-2xl text-slate-300 max-w-3xl mb-8">
-      Subheading with good contrast
-    </p>
+<section className="min-h-[80vh] flex items-center bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
+  <div className="container mx-auto px-4 max-w-7xl">
+    <h1 className="text-4xl md:text-6xl font-bold text-white">Heading</h1>
+    <p className="text-lg text-slate-300">Subheading</p>
   </div>
 </section>
 
-**CARD GRIDS:**
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-  {items.map(item => (
-    <Card key={item.id} className="h-full" />
+**CARD GRIDS (with defensive coding):**
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {(items ?? []).map((item, index) => (
+    <Card key={item?.id ?? index}>
+      {/* Gradient instead of image */}
+      <div className={\`h-48 bg-gradient-to-br \${gradients[index % gradients.length]}\`} />
+      <div className="p-6">
+        <h3 className="text-xl font-bold text-slate-900">{item?.title ?? 'Title'}</h3>
+        <p className="text-slate-600">{item?.description ?? 'Description'}</p>
+      </div>
+    </Card>
   ))}
 </div>
 
-**TEXT SIZING (Responsive):**
-- Hero H1: text-4xl md:text-5xl lg:text-6xl xl:text-7xl
-- Section H2: text-3xl md:text-4xl lg:text-5xl
-- Card H3: text-xl md:text-2xl
-- Body: text-base md:text-lg lg:text-xl
-- Small: text-sm md:text-base
-
 ═══════════════════════════════════════════════════════════════════════════════
-🖼️ IMAGES - MANDATORY (Use picsum.photos - CORS-friendly!)
+📦 REQUIRED IMPORTS FOR EVERY PAGE
 ═══════════════════════════════════════════════════════════════════════════════
 
-**NEVER use source.unsplash.com - it has CORS issues!**
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+// Import specific icons as needed
+import { ArrowRight, Check, Star } from 'lucide-react';
 
-ALWAYS use picsum.photos format:
-- https://picsum.photos/800/600?random=1
-- https://picsum.photos/800/600?random=2
-- https://picsum.photos/400/300?random=3
-
-Use different random numbers for different images to get variety!
-
-**MANDATORY IMAGE ERROR HANDLING in EVERY component with images:**
-
-const [imgError, setImgError] = useState(false);
-
-<div className="relative h-48 bg-gradient-to-br from-indigo-100 to-purple-100 overflow-hidden">
-  {!imgError ? (
-    <img
-      src="https://picsum.photos/800/600?random=1"
-      alt="Description"
-      className="w-full h-full object-cover"
-      onError={() => setImgError(true)}
-    />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-200 to-purple-200">
-      <span className="text-slate-500 text-sm">Image unavailable</span>
-    </div>
-  )}
-</div>
-
-**MANDATORY cn utility - define at top of EVERY file that uses conditional classes:**
+// cn utility - ALWAYS define inline
 const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
+═══════════════════════════════════════════════════════════════════════════════
+✅ PAGE CHECKLIST (Verify EVERY page has these)
+═══════════════════════════════════════════════════════════════════════════════
+
+[ ] React and useState imported
+[ ] cn utility defined inline (if using conditional classes)
+[ ] All props have default values
+[ ] Arrays use (arr ?? []).map()
+[ ] Objects use optional chaining (?.)
+[ ] No external image URLs
+[ ] Gradient placeholders for all images
+[ ] Hero section with gradient background
+[ ] Proper color contrast (text visible)
+[ ] motion from framer-motion for animations
+[ ] default export for the page
+
+═══════════════════════════════════════════════════════════════════════════════
+📝 SAMPLE PAGE PATTERN
 ═══════════════════════════════════════════════════════════════════════════════
 
 CRITICAL OUTPUT FORMAT - Each file MUST use <chirAction> tags:
 
 <chirAction type="file" filePath="src/pages/HomePage.tsx">
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ArrowRight, Star } from 'lucide-react';
+
+// cn utility - ALWAYS define inline
+const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+
+// Gradient colors for variety
+const gradients = [
+  'from-indigo-500 to-purple-600',
+  'from-rose-500 to-orange-500',
+  'from-emerald-500 to-teal-500',
+  'from-blue-500 to-cyan-500',
+];
+
+// Sample data with all properties defined
+const products = [
+  { id: 1, title: 'Product 1', description: 'Description 1', price: '$99' },
+  { id: 2, title: 'Product 2', description: 'Description 2', price: '$149' },
+  { id: 3, title: 'Product 3', description: 'Description 3', price: '$199' },
+];
 
 const HomePage = () => {
   return (
     <div className="min-h-screen">
-      {/* Hero with VISIBLE text */}
-      <section className="min-h-[80vh] flex items-center bg-gradient-to-br from-slate-900 to-indigo-900">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+      {/* Hero Section with gradient background */}
+      <section className="min-h-[80vh] flex items-center bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900">
+        <div className="container mx-auto px-4 max-w-7xl">
           <motion.h1 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
+            className="text-4xl md:text-6xl font-bold text-white mb-6"
           >
-            Clear Visible Heading
+            Welcome to Our Site
           </motion.h1>
           <p className="text-lg md:text-xl text-slate-300 mb-8 max-w-2xl">
-            Visible subheading with good contrast on dark background
+            A beautiful description with proper contrast.
           </p>
-          <Button size="lg">Get Started</Button>
+          <Button size="lg">
+            Get Started <ArrowRight className="ml-2 w-5 h-5" />
+          </Button>
+        </div>
+      </section>
+
+      {/* Products Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 text-center mb-12">
+            Our Products
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* DEFENSIVE CODING: use (arr ?? []).map() */}
+            {(products ?? []).map((product, index) => (
+              <motion.div
+                key={product?.id ?? index}
+                whileHover={{ y: -4 }}
+                className="bg-white rounded-xl shadow-lg overflow-hidden"
+              >
+                {/* Gradient placeholder instead of image */}
+                <div className={\`h-48 bg-gradient-to-br \${gradients[index % gradients.length]}\`} />
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-slate-900">{product?.title ?? 'Product'}</h3>
+                  <p className="text-slate-600 mt-2">{product?.description ?? ''}</p>
+                  <p className="text-lg font-bold text-indigo-600 mt-4">{product?.price ?? '$0'}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
     </div>
