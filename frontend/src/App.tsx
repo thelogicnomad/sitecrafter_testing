@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import { Builder } from "./pages/Builder";
 import { Planning } from "./pages/Planning";
 import { ProjectTypeSelection } from "./pages/ProjectTypeSelection";
+import { AgentBuilder } from "./pages/AgentBuilder";
 
 const App = () => {
   return (
@@ -21,20 +22,21 @@ const App = () => {
           <Route path="/dashboard" element={<ProtectedRoute />}>
             <Route index element={<ProjectTypeSelection />} />
           </Route>
-          
+
           <Route element={<ProtectedRoute />}>
             <Route path="/select" element={<ProjectTypeSelection />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/builder" element={<Builder />} />
+            <Route path="/agent" element={<AgentBuilder />} />
           </Route>
 
           <Route path="*" element={
-            <div className="min-h-screen flex flex-col items-center justify-center">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0a0a] text-white">
               <h1 className="text-3xl font-bold mb-4">404 Not Found</h1>
-              <p className="mb-4">The page you're looking for doesn't exist.</p>
-              <button 
+              <p className="mb-4 text-gray-400">The page you're looking for doesn't exist.</p>
+              <button
                 onClick={() => window.location.href = "/"}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
               >
                 Go Home
               </button>

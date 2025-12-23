@@ -10,10 +10,8 @@ import { ProjectStateManager } from './state-manager';
 export abstract class BaseAgent {
     protected stateManager: ProjectStateManager;
     protected client: OpenAI;
-    // Use gemini-2.5-flash as primary - per user request
+    // Use ONLY gemini-2.5-flash as per user request - no fallbacks
     protected model: string = 'gemini-2.5-flash';
-    // Fallback models to try if primary fails
-    protected fallbackModels: string[] = ['gemini-2.0-flash', 'gemini-1.5-flash'];
     protected currentModelIndex: number = 0;
     protected phase: AgentPhase;
 
@@ -134,70 +132,70 @@ export abstract class BaseAgent {
     }
 
     // Direct LLM call WITHOUT conversation history (for phases that need isolated responses like Blueprint)
-    // Now with model fallback to avoid RECITATION filter
+    // Uses only gemini-2.5-flash with robust retry and key rotation
     protected async callLLMDirect(
         systemPrompt: string,
         userPrompt: string,
         temperature: number = 0.9, // Higher temp to avoid RECITATION
-        maxRetries: number = 3
+        maxRetries: number = 5 // More retries since we only use one model
     ): Promise<string> {
         let lastError: any = null;
-        const allModels = [this.model, ...this.fallbackModels];
 
-        for (let modelIdx = 0; modelIdx < allModels.length; modelIdx++) {
-            const currentModel = allModels[modelIdx];
-            console.log(`\n🔧 Using model: ${currentModel}`);
+        console.log(`\n🔧 Using model: ${this.model}`);
 
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                await this.stateManager.waitForRateLimit();
-                this.refreshClient();
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            await this.stateManager.waitForRateLimit();
+            this.refreshClient();
 
-                console.log(`🤖 [${this.phase.toUpperCase()}] Attempt ${attempt}/${maxRetries}...`);
+            console.log(`🤖 [${this.phase.toUpperCase()}] Attempt ${attempt}/${maxRetries}...`);
 
-                try {
-                    const response = await this.client.chat.completions.create({
-                        model: currentModel,
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: userPrompt }
-                        ],
-                        temperature: temperature + (modelIdx * 0.1) // Increase temp for fallback models
-                    });
+            try {
+                const response = await this.client.chat.completions.create({
+                    model: this.model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: Math.min(temperature + (attempt * 0.05), 1.0) // Slightly increase temp on retries
+                });
 
-                    const finishReason = response.choices[0]?.finish_reason || 'unknown';
-                    const content = response.choices[0]?.message?.content || '';
-                    console.log(`   📦 Finish: ${finishReason}, Received: ${content.length} chars`);
+                const finishReason = response.choices[0]?.finish_reason || 'unknown';
+                const content = response.choices[0]?.message?.content || '';
+                console.log(`   📦 Finish: ${finishReason}, Received: ${content.length} chars`);
 
-                    // If RECITATION, try next model
-                    if (finishReason.includes('RECITATION')) {
-                        console.log(`   ⚠️ RECITATION filter - trying next model...`);
-                        break; // Break inner loop, try next model
-                    }
-
-                    if (content.length === 0) {
-                        console.log(`   ⚠️ Empty response, rotating key...`);
-                        this.stateManager.rotateApiKey();
-                        await this.delay(3000);
-                        continue;
-                    }
-
-                    return content;
-                } catch (error: any) {
-                    console.error(`   ❌ Error:`, error.message || error);
-                    lastError = error;
-
-                    if (error.status === 429 || error.message?.includes('429')) {
-                        console.log(`   🔄 Rate limited, rotating key...`);
-                        this.stateManager.rotateApiKey();
-                        await this.delay(5000);
-                        continue;
-                    }
-                    // For other errors, try next model
-                    break;
+                // If RECITATION, rotate key and retry with higher temp
+                if (finishReason.includes('RECITATION')) {
+                    console.log(`   ⚠️ RECITATION filter - rotating key and increasing temperature...`);
+                    this.stateManager.rotateApiKey();
+                    await this.delay(2000);
+                    continue;
                 }
+
+                if (content.length === 0) {
+                    console.log(`   ⚠️ Empty response, rotating key...`);
+                    this.stateManager.rotateApiKey();
+                    await this.delay(3000);
+                    continue;
+                }
+
+                return content;
+            } catch (error: any) {
+                console.error(`   ❌ Error:`, error.message || error);
+                lastError = error;
+
+                if (error.status === 429 || error.message?.includes('429')) {
+                    console.log(`   🔄 Rate limited, rotating key and waiting...`);
+                    this.stateManager.rotateApiKey();
+                    await this.delay(5000 + (attempt * 2000)); // Longer waits on subsequent retries
+                    continue;
+                }
+
+                // For other errors, rotate key and try again
+                this.stateManager.rotateApiKey();
+                await this.delay(2000);
             }
         }
-        throw new Error(`LLM call failed with all models: ${lastError?.message || 'RECITATION filter'}`);
+        throw new Error(`LLM call failed after ${maxRetries} attempts: ${lastError?.message || 'RECITATION filter'}`);
     }
 
     // Parse chirAction XML from response

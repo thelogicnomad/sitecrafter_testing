@@ -35,7 +35,7 @@ export function Builder() {
 
   const [steps, setSteps] = useState<Step[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [useAgenticMode, setUseAgenticMode] = useState(true); // NEW: Toggle for agentic generation
+  const [useLangGraphMode, setUseLangGraphMode] = useState(true); // Use LangGraph for better code generation
 
   const handleCodeChange = useCallback((newContent: string) => {
     if (!selectedFile) return;
@@ -287,10 +287,10 @@ export function Builder() {
 
         let stepsResponse;
 
-        if (useAgenticMode) {
-          // NEW: Use multi-step agentic generation pipeline
-          console.log('[Builder] 🚀 Using AGENTIC generation mode');
-          stepsResponse = await axios.post(`${BACKEND_URL}/chat/agentic`, {
+        if (useLangGraphMode) {
+          // Use LangGraph-based generation with state management
+          console.log('[Builder] 🚀 Using LANGGRAPH generation mode');
+          stepsResponse = await axios.post(`${BACKEND_URL}/chat/langgraph`, {
             prompt: prompt,
             projectType: projectTypeForTemplate
           });
@@ -380,16 +380,16 @@ export function Builder() {
               </h1>
             </button>
             <DownloadButton files={files} />
-            {/* NEW: Agentic Mode Toggle */}
+            {/* LangGraph Mode Toggle */}
             <button
-              onClick={() => setUseAgenticMode(!useAgenticMode)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${useAgenticMode
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+              onClick={() => setUseLangGraphMode(!useLangGraphMode)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${useLangGraphMode
+                ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white'
+                : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                 }`}
-              title={useAgenticMode ? 'Agentic Mode: Multi-step generation with self-verification' : 'Standard Mode: Single LLM call'}
+              title={useLangGraphMode ? 'LangGraph Mode: Stateful generation with repair loops' : 'Standard Mode: Single LLM call'}
             >
-              {useAgenticMode ? '🚀 Agentic' : '⚡ Standard'}
+              {useLangGraphMode ? '🔮 LangGraph' : '⚡ Standard'}
             </button>
             <span className="text-sm text-gray-400">Prompt: {prompt}</span>
           </div>

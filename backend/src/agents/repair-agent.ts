@@ -174,24 +174,64 @@ Return the fixed files in chirAction XML format.`;
         if (!packageFile) return;
 
         try {
-            const pkg = JSON.parse(packageFile.content);
+            // Clean the content - extract just the JSON part
+            let content = packageFile.content;
+
+            // Strip any prefix before the opening brace
+            const jsonStart = content.indexOf('{');
+            if (jsonStart > 0) {
+                console.log(`   ⚠️ Stripping ${jsonStart} chars prefix from package.json`);
+                content = content.substring(jsonStart);
+            }
+
+            // Strip any suffix after the closing brace
+            const jsonEnd = content.lastIndexOf('}');
+            if (jsonEnd > 0 && jsonEnd < content.length - 1) {
+                content = content.substring(0, jsonEnd + 1);
+            }
+
+            const pkg = JSON.parse(content);
 
             // Add missing packages with default versions
             const packageVersions: Record<string, string> = {
+                // React core
                 'react': '^18.3.1',
                 'react-dom': '^18.3.1',
                 'react-router-dom': '^7.1.1',
+                // Animation & UI
                 'framer-motion': '^11.14.4',
                 'lucide-react': '^0.460.0',
+                'class-variance-authority': '^0.7.0',
+                'gsap': '^3.12.5',
+                '@gsap/react': '^2.1.1',
+                // Utilities
                 'axios': '^1.7.9',
                 'clsx': '^2.1.1',
                 'tailwind-merge': '^2.5.5',
+                'date-fns': '^4.1.0',
+                // State & Data
                 '@tanstack/react-query': '^5.62.2',
+                'zustand': '^5.0.2',
+                // Forms & Validation
                 'zod': '^3.24.1',
                 'react-hook-form': '^7.54.0',
-                'zustand': '^5.0.2',
-                'date-fns': '^4.1.0',
-                'sonner': '^1.7.3'
+                '@hookform/resolvers': '^3.9.1',
+                // Notifications
+                'sonner': '^1.7.3',
+                // 3D & Effects
+                'three': '^0.170.0',
+                '@react-three/fiber': '^8.17.0',
+                '@react-three/drei': '^9.117.0',
+                'ogl': '^1.0.8',
+                'lenis': '^1.1.14',
+                // Radix UI
+                '@radix-ui/react-dialog': '^1.1.2',
+                '@radix-ui/react-dropdown-menu': '^2.1.2',
+                '@radix-ui/react-toast': '^1.2.2',
+                '@radix-ui/react-slot': '^1.1.0',
+                // SEO & Utils
+                'react-helmet-async': '^2.0.5',
+                'react-intersection-observer': '^9.13.1'
             };
 
             for (const error of packageErrors) {

@@ -23,6 +23,7 @@ import { PRODUCTION_FRONTEND_PROMPT, PRODUCTION_GENERATION_INSTRUCTIONS } from '
 import { PACKAGE_VERIFICATION_PROMPT, PACKAGE_GENERATION_RULES } from './prompts/package-verification';
 import { UI_UX_DESIGN_PROMPT, DESIGN_IMPLEMENTATION_RULES } from './prompts/ui-design';
 import { GenerationPipeline } from './agents';
+import { generateWebsite, GeneratedFile } from './agents/langgraph';
 dotenv.config();
 
 const app: Application = express();
@@ -269,6 +270,161 @@ app.post("/chat/agentic", async (req: Request, res: Response) => {
     });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NEW: LangGraph-based Generation Endpoint
+// Uses stateful graph with proper context passing and repair loops
+// ═══════════════════════════════════════════════════════════════════════════
+
+app.post("/chat/langgraph", async (req: Request, res: Response) => {
+  try {
+    const { prompt, projectType = 'frontend' } = req.body;
+
+    if (!prompt) {
+      res.status(400).json({ error: 'Prompt is required' });
+      return;
+    }
+
+    console.log('\n🚀 ═══════════════════════════════════════════════════');
+    console.log('🚀 LANGGRAPH GENERATION ENDPOINT CALLED');
+    console.log('🚀 ═══════════════════════════════════════════════════');
+    console.log(`📝 Prompt: ${prompt}`);
+    console.log(`🎯 Project Type: ${projectType}`);
+
+    const result = await generateWebsite(prompt, projectType);
+
+    // Convert files to chirAction XML format for frontend
+    // IMPORTANT: Must wrap in <chirArtifact> for frontend parseXml to work
+    const projectName = result.files.get('package.json')?.content
+      ? JSON.parse(result.files.get('package.json')!.content).name || 'generated-project'
+      : 'generated-project';
+
+    let xmlContent = '';
+    result.files.forEach((file, path) => {
+      xmlContent += `<chirAction type="file" filePath="${path}">\n${file.content}\n</chirAction>\n\n`;
+    });
+
+    const xmlOutput = `<chirArtifact id="generated-project" title="${projectName}">\n${xmlContent}</chirArtifact>`;
+
+    console.log(`\n✅ LangGraph generation complete: ${result.files.size} files`);
+
+    res.json({
+      success: true,
+      response: xmlOutput,
+      stats: {
+        filesGenerated: result.files.size,
+        errorsRemaining: result.errors.length,
+        messages: result.messages
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ LangGraph generation error:', error);
+    res.status(500).json({
+      error: 'Generation failed',
+      message: error.message
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NEW SSE STREAMING ENDPOINT FOR REAL-TIME FILE UPDATES
+// ═══════════════════════════════════════════════════════════════════════════
+app.post("/chat/langgraph-stream", async (req: Request, res: Response) => {
+  const { prompt, projectType = 'frontend' } = req.body;
+
+  if (!prompt) {
+    res.status(400).json({ error: 'Prompt is required' });
+    return;
+  }
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  console.log('\n🌊 ═══════════════════════════════════════════════════');
+  console.log('🌊 SSE STREAM: LangGraph Generation Started');
+  console.log('🌊 ═══════════════════════════════════════════════════');
+  console.log(`📝 Prompt: ${prompt}`);
+
+  // Helper to send SSE events
+  const sendEvent = (type: string, data: any) => {
+    res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+  };
+
+  try {
+    // Send initial message
+    sendEvent('message', {
+      content: "I'm analyzing your requirements and planning the website structure...",
+      phase: 'thinking'
+    });
+
+    // Track files sent
+    const sentFiles = new Set<string>();
+    let currentPhase = 'blueprint';
+
+    // Generate with callbacks for streaming
+    const result = await generateWebsite(
+      prompt,
+      projectType,
+      // Callback when a file is generated
+      (file: GeneratedFile) => {
+        if (!sentFiles.has(file.path)) {
+          sentFiles.add(file.path);
+          sendEvent('file', {
+            path: file.path,
+            content: file.content,
+            phase: currentPhase
+          });
+          console.log(`   🌊 Streamed: ${file.path}`);
+        }
+      },
+      // Callback when phase changes
+      (phase: string) => {
+        currentPhase = phase;
+        sendEvent('phase', {
+          phase,
+          message: getPhaseMessage(phase)
+        });
+        console.log(`   🌊 Phase: ${phase}`);
+      }
+    );
+
+    // Send completion
+    sendEvent('complete', {
+      totalFiles: result.files.size,
+      errors: result.errors.length,
+      message: `🎉 Generated ${result.files.size} files successfully!`
+    });
+
+    console.log(`\n✅ SSE Stream complete: ${result.files.size} files sent`);
+    res.end();
+
+  } catch (error: any) {
+    console.error('❌ SSE Stream error:', error);
+    sendEvent('error', {
+      message: error.message || 'Generation failed'
+    });
+    res.end();
+  }
+});
+
+// Helper function for phase messages
+function getPhaseMessage(phase: string): string {
+  const messages: Record<string, string> = {
+    'blueprint': 'Creating project blueprint...',
+    'structure': 'Setting up project structure...',
+    'core': 'Generating core files (main.tsx, App.tsx, layouts)...',
+    'components': 'Building UI components...',
+    'pages': 'Creating page components...',
+    'validation': 'Validating generated code...',
+    'repair': 'Fixing validation issues...'
+  };
+  return messages[phase] || `Processing ${phase}...`;
+}
 
 // SSE streaming version for real-time updates
 app.get("/chat/agentic/stream", async (req: Request, res: Response) => {

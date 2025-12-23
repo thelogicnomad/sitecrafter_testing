@@ -60,6 +60,9 @@ DESIGN:
 - Secondary: ${blueprint.designSystem?.secondaryColor}
 - Style: ${blueprint.designSystem?.style}
 
+EXISTING FILES (import and use these where needed):
+${this.stateManager.getFileContext() || 'No files generated yet'}
+
 FEATURE COMPONENTS TO GENERATE:
 ${featureComponents.map(c => `
 - ${c.name}
@@ -80,11 +83,12 @@ Generate components at these paths:
 - Feature components: src/components/features/ComponentName.tsx
 - Additional UI: src/components/ui/ComponentName.tsx
 
-IMAGE URLs - USE ONLY THESE FORMATS:
-- Card images: https://picsum.photos/400/300
-- Thumbnails: https://picsum.photos/200/200
-- Random seed: https://picsum.photos/seed/{keyword}/800/600
-NEVER use images.unsplash.com or fake local paths.
+IMAGE URLs - USE LOREM PICSUM (reliable, CDN-backed):
+Format: https://picsum.photos/seed/{descriptive-name}/{width}/{height}
+- Cards: https://picsum.photos/seed/card-1/400/300
+- Thumbnails: https://picsum.photos/seed/thumb-1/200/200
+- Avatars: https://picsum.photos/seed/avatar-1/100/100
+NEVER use source.unsplash.com or fake local paths.
 
 Each component must be COMPLETE with real functionality.
 Return all components in chirAction XML format.`;

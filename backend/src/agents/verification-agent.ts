@@ -238,7 +238,44 @@ Find errors in these specific files. Return ONLY JSON.`;
                     continue; // This is a TypeScript path alias, not a package
                 }
 
+                // Skip core packages that are ALWAYS present in React/Vite projects
+                const corePackages = [
+                    // React core
+                    'react', 'react-dom', 'react-router-dom',
+                    // Build tools
+                    'vite', '@vitejs/plugin-react', 'path', 'typescript',
+                    // Styling
+                    'tailwindcss', 'autoprefixer', 'postcss',
+                    // Linting
+                    'eslint', 'globals', '@eslint/js', 'typescript-eslint',
+                    'eslint-plugin-react', 'eslint-plugin-react-hooks', 'eslint-plugin-react-refresh',
+                    // Types
+                    '@types/react', '@types/react-dom', '@types/node',
+                    // Animation & UI
+                    'framer-motion', 'lucide-react', 'class-variance-authority',
+                    'gsap', '@gsap/react',
+                    // Utils
+                    'clsx', 'tailwind-merge', 'axios', 'date-fns',
+                    // Forms & Validation
+                    'react-hook-form', '@hookform/resolvers', 'zod',
+                    // State & Data
+                    'zustand', '@tanstack/react-query',
+                    // Notifications
+                    'sonner',
+                    // 3D
+                    'three', '@react-three/fiber', '@react-three/drei', 'ogl', 'lenis',
+                    // Radix UI
+                    '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', 
+                    '@radix-ui/react-toast', '@radix-ui/react-slot',
+                    // Header/SEO
+                    'react-helmet-async', 'react-intersection-observer'
+                ];
+
                 const pkg = importPath.split('/')[0]; // Get base package name
+                if (corePackages.includes(pkg) || corePackages.includes(importPath.split('/').slice(0, 2).join('/'))) {
+                    continue; // Skip core packages
+                }
+
                 if (pkg.startsWith('@')) {
                     // Scoped package (like @hookform/resolvers) - get first two parts
                     const parts = importPath.split('/');

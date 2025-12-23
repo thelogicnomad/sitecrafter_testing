@@ -11,6 +11,8 @@ import {
     ProjectBlueprint,
     RateLimitConfig
 } from './types';
+import { FileRegistry } from './file-registry';
+
 
 // Conversation message type
 export interface ConversationMessage {
@@ -36,14 +38,25 @@ export class ProjectStateManager {
     // NEW: Conversation history for context continuity
     private conversationHistory: ConversationMessage[] = [];
 
+    // NEW: File Registry for tracking all generated files and their relationships
+    private fileRegistry: FileRegistry = new FileRegistry();
+
+
     constructor(
         userPrompt: string,
         projectType: 'frontend' | 'backend' | 'fullstack' = 'frontend',
         apiKeys: string[] = []
     ) {
+        // Use all 3 API keys for rotation: gemini, gemini3, gemini4
+        const defaultKeys = [
+            process.env.gemini,
+            process.env.gemini3,
+            process.env.gemini4
+        ].filter(key => key && key.length > 0) as string[];
+
         this.rateLimitConfig = {
             ...DEFAULT_RATE_LIMIT,
-            apiKeys: apiKeys.length > 0 ? apiKeys : [process.env.gemini3 || '']
+            apiKeys: apiKeys.length > 0 ? apiKeys : defaultKeys
         };
 
         this.state = {
@@ -155,6 +168,10 @@ export class ProjectStateManager {
         this.state.generatedFiles.set(file.path, file);
         console.log(`📁 File generated: ${file.path} (Phase: ${file.phase})`);
 
+        // Register in FileRegistry for tracking exports/imports
+        const entry = this.fileRegistry.parseFileContent(file.path, file.content, file.phase);
+        this.fileRegistry.registerFile(entry);
+
         if (this.state.onFileGenerated) {
             this.state.onFileGenerated(file);
         }
@@ -237,5 +254,23 @@ export class ProjectStateManager {
    Iterations: ${this.state.iterationCount}/${this.state.maxIterations}
    Blueprint: ${this.state.blueprint ? '✅' : '❌'}
 `;
+    }
+
+    // NEW: Get file context for agents - tells them what files exist and what they export
+    getFileContext(targetType?: 'component' | 'page' | 'util' | 'config' | 'style' | 'layout' | 'hook'): string {
+        return this.fileRegistry.generateContextForAgent(targetType);
+    }
+
+    // NEW: Get unused files (for verification)
+    getUnusedFiles(): { path: string; exports: string[] }[] {
+        return this.fileRegistry.getUnusedFiles().map(f => ({
+            path: f.path,
+            exports: f.exports
+        }));
+    }
+
+    // NEW: Get the file registry for direct access
+    getFileRegistry() {
+        return this.fileRegistry;
     }
 }

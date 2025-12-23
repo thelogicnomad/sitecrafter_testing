@@ -54,6 +54,9 @@ SECTIONS: ${page.sections?.join(', ') || 'Hero, Features, Content, CTA'}
 MUST EXPORT: export default ${fileName};`;
         }).join('\n');
 
+        // Get rich file context from FileRegistry
+        const fileContext = this.stateManager.getFileContext();
+
         return `Generate COMPLETE page implementations for this project:
 
 PROJECT: ${blueprint.projectName}
@@ -64,8 +67,10 @@ DESIGN:
 - Secondary Color: ${blueprint.designSystem?.secondaryColor}
 - Style: ${blueprint.designSystem?.style}
 
-ALREADY GENERATED COMPONENTS (import these):
-${componentFiles || '@/components/ui/Button\n@/components/ui/Card\n@/components/layout/Header\n@/components/layout/Footer'}
+${fileContext ? `EXISTING FILES (YOU MUST IMPORT AND USE THESE):
+${fileContext}` : `AVAILABLE COMPONENTS (import these):
+${componentFiles || '@/components/ui/Button\n@/components/ui/Card\n@/components/layout/Header\n@/components/layout/Footer'}`}
+
 
 PAGES TO GENERATE:
 ${pageSpecs}
@@ -86,17 +91,26 @@ CRITICAL REQUIREMENTS:
 8. NO "Coming soon" or TODO comments
 9. MUST use default exports: export default PageName;
 
-IMAGE URLs - USE ONLY THESE FORMATS:
-- Hero images: https://picsum.photos/1920/1080
-- Card images: https://picsum.photos/400/300
-- Thumbnails: https://picsum.photos/200/200
-- Portrait: https://picsum.photos/600/800
-- Random seed: https://picsum.photos/seed/{keyword}/800/600
+IMAGE URLs - USE LOREM PICSUM (reliable, CDN-backed):
+Format: https://picsum.photos/seed/{descriptive-name}/{width}/{height}
+
+The "seed" ensures consistent images. Use descriptive names like:
+- https://picsum.photos/seed/hero-${blueprint.projectName.toLowerCase().replace(/\s+/g, '-')}/1920/1080
+- https://picsum.photos/seed/product1/400/300
+- https://picsum.photos/seed/team-member1/300/300
+- https://picsum.photos/seed/about-section/800/600
+
+Examples:
+- Hero banner: https://picsum.photos/seed/hero-main/1920/1080
+- Product cards: https://picsum.photos/seed/product-1/400/300
+- Team photos: https://picsum.photos/seed/team-1/300/300
+- Gallery: https://picsum.photos/seed/gallery-1/600/400
 
 NEVER use:
-- images.unsplash.com direct links (they return 404)
-- /images/... local paths that don't exist
-- placeholder.com or other services
+- source.unsplash.com (deprecated, often fails)
+- /images/... local paths
+- placeholder.com
+
 
 IMPORTANT: Do NOT put backticks around the code. Raw TypeScript/TSX only.
 
