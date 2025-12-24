@@ -25,18 +25,18 @@ export interface UnsplashImage {
 }
 
 /**
- * Generate 25 image keywords using LLM based on project description
+ * Generate 20 image keywords using LLM based on project description
  */
 async function generateKeywords(description: string): Promise<ImageKeyword[]> {
     const systemPrompt = `You are an image keyword generator for website builders. 
-Given a website description, generate exactly 25 image keywords that would be needed for that type of website.
+Given a website description, generate exactly 20 image keywords that would be needed for that type of website.
 Return ONLY a valid JSON array with this exact structure (no markdown, no explanation):
 [
   {"keyword": "chocolate cake", "description": "Decadent chocolate layer cake for product showcase"},
   {"keyword": "wedding cake", "description": "Elegant multi-tier wedding cake for special occasions section"}
 ]`;
 
-    const userPrompt = `Generate 25 unique and relevant image keywords for: "${description}"
+    const userPrompt = `Generate 20 unique and relevant image keywords for: "${description}"
 
 For example, for a "cake selling website", you might need: chocolate cake, wedding cake, birthday cake, bakery interior, frosting close-up, pastry chef, cupcakes display, etc.
 
