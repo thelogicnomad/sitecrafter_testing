@@ -24,6 +24,7 @@ import { PACKAGE_VERIFICATION_PROMPT, PACKAGE_GENERATION_RULES } from './prompts
 import { UI_UX_DESIGN_PROMPT, DESIGN_IMPLEMENTATION_RULES } from './prompts/ui-design';
 import { GenerationPipeline } from './agents';
 import { generateWebsite, GeneratedFile } from './agents/langgraph';
+import { fixCodeError, analyzeCode } from './agents/langgraph/services/error-fixer.service';
 dotenv.config();
 
 const app: Application = express();
@@ -1000,6 +1001,74 @@ function extractBackendStructure(code: string): string {
 
   return structure.length > 0 ? structure.join('\n') : 'Backend structure analysis pending...';
 }
+
+// ====================================
+// ERROR FIXING ENDPOINTS (for WebContainer)
+// ====================================
+
+/**
+ * POST /api/fix-error
+ * Uses LLM to fix code errors from WebContainer
+ */
+app.post('/api/fix-error', async (req: Request, res: Response) => {
+  try {
+    const { error, filePath, fileContent } = req.body;
+
+    if (!error || !filePath || !fileContent) {
+      res.status(400).json({
+        error: 'Missing required fields: error, filePath, fileContent'
+      });
+      return;
+    }
+
+    console.log(`\n🔧 ERROR FIX REQUEST`);
+    console.log(`   File: ${filePath}`);
+    console.log(`   Error: ${error.slice(0, 150)}...`);
+
+    const result = await fixCodeError(error, filePath, fileContent);
+
+    console.log(`   ✅ Fix generated successfully`);
+    res.json(result);
+
+  } catch (error: any) {
+    console.error('❌ Error fix failed:', error.message);
+    res.status(500).json({
+      error: 'Failed to fix error',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/analyze-code
+ * Analyzes code files for potential issues
+ */
+app.post('/api/analyze-code', async (req: Request, res: Response) => {
+  try {
+    const { files } = req.body;
+
+    if (!files || !Array.isArray(files)) {
+      res.status(400).json({
+        error: 'Missing required field: files (array)'
+      });
+      return;
+    }
+
+    console.log(`\n🔍 CODE ANALYSIS REQUEST (${files.length} files)`);
+
+    const issues = await analyzeCode(files);
+
+    console.log(`   Found ${issues.length} issues`);
+    res.json({ issues });
+
+  } catch (error: any) {
+    console.error('❌ Code analysis failed:', error.message);
+    res.status(500).json({
+      error: 'Failed to analyze code',
+      details: error.message
+    });
+  }
+});
 
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI;

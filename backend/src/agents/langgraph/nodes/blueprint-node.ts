@@ -5,6 +5,7 @@
 import { WebsiteState, ProjectBlueprint } from '../graph-state';
 import { invokeLLM } from '../llm-utils';
 import { storeBlueprintMemory, clearProjectMemory, generateProjectId } from '../memory-utils';
+import { fetchProjectImages, storeImagesInMemory, UnsplashImage } from '../services/image.service';
 
 // Complete list of dependencies
 const STANDARD_DEPENDENCIES: Record<string, string> = {
@@ -125,11 +126,27 @@ REQUIREMENTS:
         await clearProjectMemory(projectId);
         await storeBlueprintMemory(projectId, blueprint);
 
+        // Fetch images from the image microservice
+        console.log('\n🖼️  Fetching project images...');
+        let availableImages: UnsplashImage[] = [];
+        try {
+            availableImages = await fetchProjectImages(state.userPrompt);
+            if (availableImages.length > 0) {
+                await storeImagesInMemory(projectId, availableImages);
+                console.log(`✅ ${availableImages.length} images fetched and stored`);
+            } else {
+                console.log('⚠️  No images fetched - will use gradient placeholders');
+            }
+        } catch (imgError: any) {
+            console.error(`⚠️  Image fetching failed: ${imgError.message} - will use gradients`);
+        }
+
         return {
             blueprint,
             projectId,
+            availableImages,
             currentPhase: 'blueprint',
-            messages: [`Blueprint created: ${blueprint.projectName} with ${blueprint.pages.length} pages`]
+            messages: [`Blueprint created: ${blueprint.projectName} with ${blueprint.pages.length} pages, ${availableImages.length} images`]
         };
 
     } catch (error: any) {
