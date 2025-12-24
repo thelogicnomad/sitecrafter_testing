@@ -5,6 +5,15 @@
 
 import { Annotation } from '@langchain/langgraph';
 
+// Image interface (matching image microservice)
+export interface UnsplashImage {
+    keyword: string;
+    description: string;
+    imageUrl: string;
+    unsplashLink: string;
+    photographer: string;
+}
+
 // Type definitions
 export interface ProjectBlueprint {
     projectName: string;
@@ -135,6 +144,12 @@ export const WebsiteStateAnnotation = Annotation.Root({
     // Messages for context
     messages: Annotation<string[]>({
         reducer: (existing, newMsgs) => [...existing, ...newMsgs],
+        default: () => []
+    }),
+
+    // Available images from the image microservice
+    availableImages: Annotation<UnsplashImage[]>({
+        reducer: (_, newVal) => newVal,
         default: () => []
     })
 });

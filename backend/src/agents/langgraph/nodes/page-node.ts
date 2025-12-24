@@ -8,6 +8,7 @@ import { WebsiteState, GeneratedFile, createRegistryEntry, generateFileContext }
 import { invokeLLM, parseChirActions, extractExports, extractImports } from '../llm-utils';
 import { storeFileMemory, getAllFileMemories, FileMemory } from '../memory-utils';
 import { notifyFileCreated, notifyPhaseChange } from '../website-graph';
+import { formatImagesForPrompt } from '../services/image.service';
 
 export async function pageNode(state: WebsiteState): Promise<Partial<WebsiteState>> {
   console.log('\n📄 ═══════════════════════════════════════════');
@@ -238,7 +239,12 @@ export default HomePage;
 
 NEVER use markdown. ALWAYS use <chirAction> tags.`;
 
+  // Format available images for the prompt
+  const imagesContext = formatImagesForPrompt(state.availableImages || []);
+
   const userPrompt = `Generate ALL page components for "${blueprint.projectName}":
+
+${imagesContext}
 
 ═══════════════════════════════════════════════════════════════════════════════
 🧠 MEMORY CONTEXT (Previously Generated Components)

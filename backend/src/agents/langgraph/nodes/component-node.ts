@@ -8,6 +8,7 @@ import { WebsiteState, GeneratedFile, createRegistryEntry, generateFileContext }
 import { invokeLLM, parseChirActions, extractExports, extractImports } from '../llm-utils';
 import { storeFileMemory, getAllFileMemories, FileMemory } from '../memory-utils';
 import { notifyFileCreated, notifyPhaseChange } from '../website-graph';
+import { formatImagesForPrompt } from '../services/image.service';
 
 export async function componentNode(state: WebsiteState): Promise<Partial<WebsiteState>> {
   console.log('\n🧩 ═══════════════════════════════════════════');
@@ -216,9 +217,14 @@ NEVER use markdown code blocks. ALWAYS use <chirAction> tags.`;
   const uiComponents = blueprint.components.filter(c => c.type === 'ui');
   const featureComponents = blueprint.components.filter(c => c.type === 'feature');
 
+  // Format available images for the prompt
+  const imagesContext = formatImagesForPrompt(state.availableImages || []);
+
   const userPrompt = `Generate ALL production-ready components for "${blueprint.projectName}":
 
 ${memoryContext}
+
+${imagesContext}
 
 EXISTING FILES (IMPORT FROM THESE):
 ${existingContext}
