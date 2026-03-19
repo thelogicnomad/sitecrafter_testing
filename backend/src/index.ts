@@ -32,6 +32,7 @@ import multer from 'multer';
 import AdmZip from 'adm-zip';
 import { ingestDocumentation, queryDocumentation, generateComponent, testPipeline } from './rag/rag-3d';
 import { classifyIntents, resolveContext, formatDocsForPrompt } from "./services/context-3d.service";
+import { MasterContext3DService } from "./services/master-context-3d.service";
 dotenv.config();
 
 // Configure multer for file uploads (memory storage)
@@ -176,6 +177,98 @@ app.post("/test/context-3d", async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// Test route for MasterContext3DService - unified context generation
+app.post("/test/master-context-3d", async (req: Request, res: Response) => {
+  try {
+    const { prompt, maxTokens } = req.body;
+
+    console.log('\n🧪 /TEST/MASTER-CONTEXT-3D ENDPOINT CALLED');
+    console.log(`[test-master-context] Prompt: "${prompt?.slice(0, 100)}..."`);
+
+    if (!prompt) {
+      res.status(400).json({
+        success: false,
+        error: "Missing 'prompt' in request body"
+      });
+      return;
+    }
+
+    // Generate master context without existing theme (service will generate one)
+    const result = await MasterContext3DService.generateMasterContext(prompt, null);
+
+    if (!result.success || !result.data) {
+      res.status(500).json({
+        success: false,
+        error: result.error || 'Failed to generate master context'
+      });
+      return;
+    }
+
+    const masterContext = result.data;
+
+    // Optionally serialize for LLM with custom token limit
+    const serialized = MasterContext3DService.serializeForLLM(
+      masterContext,
+      maxTokens || 20000
+    );
+
+    // Extract scene contexts for debugging
+    const sceneContexts: Record<string, string> = {};
+    for (const scene of masterContext.scenes) {
+      sceneContexts[scene.name] = MasterContext3DService.extractSceneContext(masterContext, scene.name);
+    }
+
+    // Extract page contexts for debugging
+    const pageContexts: Record<string, string> = {};
+    for (const page of masterContext.pages) {
+      pageContexts[page.name] = MasterContext3DService.extractPageContext(masterContext, page.name);
+    }
+
+    res.json({
+      success: true,
+      masterContext: {
+        brand: masterContext.brand,
+        businessDNA: masterContext.businessDNA,
+        designTokens: masterContext.designTokens,
+        scenes: masterContext.scenes.map(s => ({
+          name: s.name,
+          fileName: s.fileName,
+          purpose: s.purpose,
+          objectCount: s.objects.length,
+          hasParticles: !!s.particles,
+          hasShader: !!s.shader
+        })),
+        pages: masterContext.pages.map(p => ({
+          name: p.name,
+          fileName: p.fileName,
+          sceneComponents: p.sceneComponents,
+          scrollPages: p.scrollPages,
+          sectionsCount: p.sections.length
+        })),
+        ragContext: {
+          intentTags: masterContext.ragContext.intentTags,
+          threejsDocCount: masterContext.ragContext.threejsDocs?.length || 0,
+          externalDocCount: masterContext.ragContext.externalDocs?.length || 0
+        },
+        expandedPrompt: masterContext.expandedPrompt?.slice(0, 500) + '...',
+        fileStructure: masterContext.fileStructure?.slice(0, 10)
+      },
+      serializedLength: serialized.length,
+      sceneContexts,
+      pageContexts,
+      fullSerializedContext: serialized
+    });
+
+  } catch (error: any) {
+    console.error("[test-master-context] Error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

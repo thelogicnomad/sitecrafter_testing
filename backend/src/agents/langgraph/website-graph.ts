@@ -18,6 +18,7 @@ import { context3DNode } from './nodes/context-3d-node';
 import { generate3DComponentNode } from './nodes/generate-3d-component-node';
 import { tscValidationNode } from './nodes/tsc-validation-node';
 import { promptExpansionNode } from './nodes/prompt-expansion-node';
+import { masterContext3DNode } from './nodes/master-context-3d-node';
 // [DISABLED] Old RAG embed failure tracking -- no longer needed
 // import { resetEmbedFailureCounts } from '../../rag/rag-3d';
 
@@ -51,6 +52,7 @@ function buildGraph() {
         .addNode('modification_analyzer', modificationAnalyzerNode)
 
         .addNode('prompt_expansion', promptExpansionNode)
+        .addNode('master_context_3d', masterContext3DNode)
         .addNode('blueprint_step', blueprintNode)
 
         // [DISABLED] Old RAG pipeline nodes -- replaced by per-request crawl
@@ -84,8 +86,8 @@ function buildGraph() {
                 case 'create':
                 default:
                     if (state.enable3D) {
-                        console.log('   -> 3D create: routing to prompt_expansion first');
-                        return 'prompt_expansion';
+                        console.log('   -> 3D create: routing to master_context_3d (unified context)');
+                        return 'master_context_3d';
                     }
                     console.log('   -> Routing to blueprint_step (full creation)');
                     return 'blueprint_step';
@@ -93,6 +95,7 @@ function buildGraph() {
         }, {
             'chat_response': 'chat_response',
             'modification_analyzer': 'modification_analyzer',
+            'master_context_3d': 'master_context_3d',
             'prompt_expansion': 'prompt_expansion',
             'blueprint_step': 'blueprint_step'
         })
@@ -100,11 +103,20 @@ function buildGraph() {
         .addEdge('chat_response', END)
         .addEdge('modification_analyzer', END)
 
+        // prompt_expansion (legacy 2D path)
         .addEdge('prompt_expansion', 'blueprint_step')
 
+        // master_context_3d -> blueprint_step (3D path - context already generated)
+        .addEdge('master_context_3d', 'blueprint_step')
+
         .addConditionalEdges('blueprint_step', (state: WebsiteState) => {
+            // If masterContext exists, skip context_3d (already has RAG context)
+            if (state.masterContext) {
+                console.log('   -> Master context exists, skipping context_3d, routing to structure_step');
+                return 'structure_step';
+            }
             if (state.enable3D) {
-                console.log('   -> 3D enabled, routing to context_3d');
+                console.log('   -> 3D enabled but no masterContext, routing to context_3d');
                 return 'context_3d';
             }
             console.log('   -> Standard pipeline, routing to structure_step');

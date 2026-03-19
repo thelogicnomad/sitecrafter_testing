@@ -28,7 +28,8 @@ export function initProjectMemory(state: WebsiteState): ProjectMemory {
         componentsGenerated: [],
         pagesGenerated: [],
         is3D: state.enable3D || false,
-        threeDModules: state.threeDModules || [],
+        // Use intentTags if available (from new context system), fall back to threeDModules
+        threeDModules: state.intentTags?.length ? state.intentTags : (state.threeDModules || []),
         ragContext: state.ragContext || '',
         threeDDependencies: {},
         threeDComponentPaths: [],
@@ -56,7 +57,7 @@ export function getMemoryContext(memory: ProjectMemory): string {
     if (memory.is3D) {
         lines.push(`3D MODE: enabled`);
         if (memory.threeDModules.length > 0) {
-            lines.push(`3D MODULES AVAILABLE: ${memory.threeDModules.join(', ')}`);
+            lines.push(`3D SCENE INTENT: ${memory.threeDModules.join(', ')}`);
         }
         if (memory.threeDComponentPaths.length > 0) {
             lines.push(`3D COMPONENTS GENERATED: ${memory.threeDComponentPaths.join(', ')}`);

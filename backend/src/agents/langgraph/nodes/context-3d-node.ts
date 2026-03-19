@@ -34,6 +34,8 @@ export async function context3DNode(state: WebsiteState): Promise<Partial<Websit
         return {
             ragContext,
             intentTags,
+            // Populate threeDModules with intent tags so project-memory and component node have context
+            threeDModules: intentTags,
             currentPhase: 'context_3d_complete',
             messages: [
                 `3D context: ${resolved.threejsDocs.length} Three.js docs + ${resolved.externalDocs.length} external docs (${intentTags.length} intents: ${intentTags.join(', ')})`,
@@ -44,6 +46,7 @@ export async function context3DNode(state: WebsiteState): Promise<Partial<Websit
         return {
             ragContext: '',
             intentTags: [],
+            threeDModules: [],
             currentPhase: 'context_3d_complete',
             messages: [`3D context build failed: ${err.message}`],
         };

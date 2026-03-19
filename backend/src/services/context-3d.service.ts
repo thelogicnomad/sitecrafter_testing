@@ -80,18 +80,31 @@ export async function classifyIntents(expandedBrief: string): Promise<string[]> 
     const validTags = Object.keys(contextMap.intent_map);
 
     const systemPrompt = 'You are a 3D web technology classifier. Return ONLY a JSON array of strings. No markdown, no explanation.';
-    const userPrompt = `Analyze the following 3D website brief and return the relevant intent tags from this exact list:
+
+    // NOTE: We deliberately do NOT hardcode "lighting" or "post_processing" here.
+    // Those docs are already in core_docs_always_included and will always be fetched.
+    // Forcing them as classifier tags wastes the extra-doc budget and makes every site
+    // feel identical. Instead we ask the classifier to pick tags that are SPECIFIC and
+    // UNIQUE to this brief — giving the generator LLM the right context to build
+    // something genuinely different each time.
+    const userPrompt = `You are classifying a 3D website brief to select the most SPECIFIC and THEMATICALLY APPROPRIATE documentation tags.
+
+AVAILABLE TAGS:
 ${JSON.stringify(validTags)}
 
 BRIEF (first 3000 chars):
 "${expandedBrief.slice(0, 3000)}"
 
-Rules:
+RULES:
 - Return ONLY tags from the list above.
-- Return between 3 and 10 tags that are relevant to the brief.
-- Always include "lighting" since every 3D scene needs lights.
-- Always include "post_processing" since every cinematic 3D site uses bloom/vignette.
+- Return between 5 and 12 tags.
+- PRIORITIZE tags that are UNIQUE to this specific brief — pick tags that reflect the brand, mood, and visual identity described (e.g. a bakery site might emphasize "environment_maps", "particles", "custom_materials"; a college site might emphasize "text_3d", "scroll_animation", "instancing").
+- Do NOT default to generic tags just because all 3D scenes need lights. Core lighting docs are always included automatically. Only include a lighting-specific tag (e.g. "lighting", "shadows") if the brief specifically calls for dramatic shadow work, colored theatrical lighting, or a distinctive light-driven aesthetic.
+- Do NOT include "post_processing" unless the brief specifically needs cinematic post effects beyond the standard bloom/vignette. Standard post effects are always included automatically.
+- Think about what makes THIS site visually distinct from every other 3D site. Favor tags that enable that distinctiveness.
 - If the brief mentions scroll/camera path, include "scroll_animation".
+- If the brief involves products, objects, or characters that need to be interactive or animated, include "animation" and/or "models".
+- If the brief calls for a strong atmosphere (fog, particles, environmental effects), include those specific tags.
 
 Return ONLY a JSON array of strings.`;
 
@@ -100,12 +113,12 @@ Return ONLY a JSON array of strings.`;
             rotateKey();
             const client = getClient();
             const response = await client.chat.completions.create({
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-2.5-flash-lite',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userPrompt },
                 ],
-                temperature: 0.2,
+                temperature: 0.4, // Slightly higher than before to encourage creative tag selection
             });
 
             const content = response.choices[0]?.message?.content || '[]';
@@ -114,7 +127,7 @@ Return ONLY a JSON array of strings.`;
             if (match) {
                 const parsed = JSON.parse(match[0]) as string[];
                 const filtered = parsed.filter(tag => validTags.includes(tag));
-                if (filtered.length >= 2) {
+                if (filtered.length >= 3) {
                     console.log(`[context-3d] Classified ${filtered.length} intent tags: ${filtered.join(', ')}`);
                     return filtered;
                 }
@@ -125,7 +138,8 @@ Return ONLY a JSON array of strings.`;
         }
     }
 
-    const fallback = ['lighting', 'post_processing', 'shaders_custom', 'particles', 'scroll_animation'];
+    // Fallback: use a generic set that still avoids duplicating core docs
+    const fallback = ['shaders_custom', 'particles', 'scroll_animation', 'environment_maps', 'animation'];
     console.warn(`[context-3d] Classification failed, using fallback tags: ${fallback.join(', ')}`);
     return fallback;
 }
@@ -155,8 +169,14 @@ export async function resolveContext(intentTags: string[]): Promise<ResolvedCont
 
     let uniqueThreejsNames = Array.from(threejsDocNames);
     const coreCount = contextMap.core_docs_always_included.length;
-    if (uniqueThreejsNames.length > coreCount + 8) {
-        uniqueThreejsNames = uniqueThreejsNames.slice(0, coreCount + 8);
+
+    // Increased from coreCount + 8 to coreCount + 14 so that unique intent-tag docs
+    // actually reach the generator LLM instead of being silently dropped. This is the
+    // main reason both sites looked identical — only 8 extra docs were allowed through,
+    // and those slots were being consumed by lighting/post_processing tags that added
+    // docs already present in core, leaving zero room for truly unique content.
+    if (uniqueThreejsNames.length > coreCount + 14) {
+        uniqueThreejsNames = uniqueThreejsNames.slice(0, coreCount + 14);
     }
     const uniqueExternalKeys = Array.from(externalLibKeys);
 

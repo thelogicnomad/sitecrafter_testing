@@ -835,7 +835,7 @@ export const AgentBuilder: React.FC = () => {
         } finally {
             setIsProcessing(false);
         }
-    }, [addMessage, updatePhase, updateFile]);
+    }, [addMessage, updatePhase, updateFile, enable3D]);
 
     // Handle stop
     const handleStop = useCallback(() => {
@@ -972,7 +972,7 @@ export const AgentBuilder: React.FC = () => {
             setIsProcessing(false);
             setIsCreating(false);
         }
-    }, [blueprint, pendingPrompt, addMessage, updatePhase, mountFiles, startDevServer, saveProject]);
+    }, [blueprint, pendingPrompt, addMessage, updatePhase, mountFiles, startDevServer, saveProject, enable3D]);
 
     // Handle reject planning
     const handleRejectPlan = useCallback(() => {

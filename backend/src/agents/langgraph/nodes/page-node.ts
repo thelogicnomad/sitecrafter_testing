@@ -10,6 +10,7 @@ import { storeFileMemory, getAllFileMemories, FileMemory } from '../memory-utils
 import { notifyFileCreated, notifyPhaseChange } from '../website-graph';
 import { formatImagesForPrompt } from '../services/image.service';
 import { getMemoryContext } from '../project-memory';
+import { MasterContext3DService } from '../../../services/master-context-3d.service';
 
 export async function pageNode(state: WebsiteState): Promise<Partial<WebsiteState>> {
   console.log('\n ═══════════════════════════════════════════');
@@ -1070,6 +1071,38 @@ function buildPageSpecificSceneContext(state: any, assignedScenes: string[], pag
     return `                <group position={[0, ${i * -10}, 0]}>\n                  <${name} />\n                </group>`;
   }).join('\n');
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // MASTER CONTEXT INTEGRATION
+  // If masterContext exists, extract page-specific context with design tokens
+  // ══════════════════════════════════════════════════════════════════════════
+  let masterContextSection = '';
+  if (state.masterContext) {
+    const pageName = page.name.replace(/\s+/g, '');
+    const pageContext = MasterContext3DService.extractPageContext(state.masterContext, pageName);
+
+    if (pageContext) {
+      masterContextSection = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MASTER CONTEXT - PAGE BLUEPRINT (PRE-GENERATED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${pageContext}
+
+BRAND: ${state.masterContext.brand?.name || 'Brand'}
+TAGLINE: ${state.masterContext.brand?.tagline || ''}
+INDUSTRY: ${state.masterContext.businessDNA?.industry || 'creative'}
+
+DESIGN TOKENS FROM MASTER CONTEXT:
+- Background: ${state.masterContext.designTokens?.colors?.background || bg}
+- Primary: ${state.masterContext.designTokens?.colors?.primary || primary}
+- Accent: ${state.masterContext.designTokens?.colors?.accent || accent}
+- Emissive: ${state.masterContext.designTokens?.colors?.emissive || primary}
+- Heading Font: ${state.masterContext.designTokens?.typography?.headingFont || 'Inter'}
+- Body Font: ${state.masterContext.designTokens?.typography?.bodyFont || 'Inter'}
+`;
+    }
+  }
+
   return `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 3D SCENE INTEGRATION FOR THIS PAGE ONLY
@@ -1088,6 +1121,8 @@ DESIGN COLORS:
   Primary: ${primary}
   Accent: ${accent}
   Glass: backdrop-blur-xl bg-white/5 border border-white/10
+
+${masterContextSection}
 
 PAGE STRUCTURE (NavBar3D is in AppLayout — DO NOT add it here):
 <div className="relative min-h-screen bg-[${bg}]">

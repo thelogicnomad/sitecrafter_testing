@@ -4,6 +4,7 @@
  */
 
 import { Annotation } from '@langchain/langgraph';
+import { MasterContext3D } from '../../types/master-context-3d.types';
 
 // Image interface (matching image microservice)
 export interface UnsplashImage {
@@ -315,6 +316,13 @@ export const WebsiteStateAnnotation = Annotation.Root({
     scenePageMap: Annotation<Record<string, string[]>>({
         reducer: (_, newVal) => newVal,
         default: () => ({})
+    }),
+
+    // Master 3D context - comprehensive structured context for all downstream nodes
+    // Contains: businessDNA, brand, designTokens, scenes, pages, ragContext, performance
+    masterContext: Annotation<MasterContext3D | null>({
+        reducer: (_, newVal) => newVal,
+        default: () => null
     })
 });
 
