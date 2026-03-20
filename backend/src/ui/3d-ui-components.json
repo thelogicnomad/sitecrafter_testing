@@ -294,6 +294,141 @@
       "keywords": ["audio", "sound", "music", "spatial audio", "3d sound", "howler", "positional audio", "sound effects", "background music", "audio sprite"],
       "codesnippet": "import { Howl, Howler } from 'howler';\n\n// Basic sound\nconst sound = new Howl({\n  src: ['sound.webm', 'sound.mp3'],\n  volume: 0.5,\n  loop: false,\n  autoplay: false,\n  onend: () => console.log('Finished!')\n});\nsound.play();\nsound.pause();\nsound.stop();\nsound.fade(0, 1, 2000); // fade from 0 to 1 over 2s\n\n// 3D Positional audio\nconst spatial = new Howl({\n  src: ['ambient.webm', 'ambient.mp3'],\n  loop: true,\n  volume: 1.0,\n  pannerAttr: {\n    panningModel: 'HRTF',\n    refDistance: 1,\n    rolloffFactor: 1,\n    distanceModel: 'inverse'\n  }\n});\nspatial.pos(x, y, z);       // set sound position in 3D space\nspatial.play();\n\n// Update listener position from Three.js camera each frame\nHowler.pos(\n  camera.position.x,\n  camera.position.y,\n  camera.position.z\n);\nHowler.orientation(\n  forward.x, forward.y, forward.z, // look direction\n  up.x, up.y, up.z                  // up vector\n);\n\n// Audio sprites (multiple sounds in one file)\nconst sprite = new Howl({\n  src: ['sprites.webm', 'sprites.mp3'],\n  sprite: {\n    footstep: [0, 350],\n    jump:     [500, 300],\n    land:     [1000, 450]\n  }\n});\nsprite.play('footstep');\nsprite.play('jump');",
       "dependencies": "npm install howler"
+    },
+
+    "postprocessing": {
+      "crawl_url": "https://github.com/pmndrs/postprocessing",
+      "fetch_method": "tavily",
+      "description": "Advanced post-processing library for Three.js by pmndrs. Provides SSR (Screen Space Reflections), SSAO, SSGI, bloom, depth of field, motion blur, and many cinematic effects with excellent performance through effect merging.",
+      "keywords": ["ssr", "ssao", "ssgi", "post processing", "bloom", "cinematic", "effects", "pmndrs", "screen space reflections", "ambient occlusion"],
+      "codesnippet": "import { EffectComposer, RenderPass, EffectPass, BloomEffect, SSAOEffect, SMAAEffect } from 'postprocessing';\n\n// Setup composer\nconst composer = new EffectComposer(renderer);\ncomposer.addPass(new RenderPass(scene, camera));\n\n// Add effects\nconst bloomEffect = new BloomEffect({ intensity: 1.5, luminanceThreshold: 0.9 });\nconst ssaoEffect = new SSAOEffect(camera, normalPass.texture, { samples: 16, radius: 0.1 });\nconst smaaEffect = new SMAAEffect();\n\ncomposer.addPass(new EffectPass(camera, bloomEffect, ssaoEffect, smaaEffect));\n\n// In render loop\ncomposer.render();",
+      "dependencies": "npm install postprocessing"
+    },
+
+    "lamina": {
+      "crawl_url": "https://github.com/pmndrs/lamina",
+      "fetch_method": "tavily",
+      "description": "Layer-based shader material system for Three.js. Create complex materials by stacking layers (color, depth, fresnel, noise, gradient) without writing GLSL. Perfect for artistic, stylized 3D effects.",
+      "keywords": ["lamina", "layer material", "shader layers", "fresnel", "gradient", "noise", "artistic material", "stylized"],
+      "codesnippet": "import { LayerMaterial, Color, Depth, Fresnel, Noise } from 'lamina';\n\n// In R3F component\n<mesh>\n  <sphereGeometry args={[1, 64, 64]} />\n  <LayerMaterial color=\"#ff0000\" lighting=\"standard\">\n    <Depth colorA=\"#00ff00\" colorB=\"#0000ff\" alpha={0.5} mode=\"multiply\" near={0} far={2} />\n    <Fresnel color=\"#ffffff\" intensity={0.5} power={2} />\n    <Noise colorA=\"#ffffff\" colorB=\"#000000\" alpha={0.2} scale={100} type=\"perlin\" />\n  </LayerMaterial>\n</mesh>",
+      "dependencies": "npm install lamina"
+    },
+
+    "three_custom_shader_material": {
+      "crawl_url": "https://github.com/FarazzShaworih/three-custom-shader-material",
+      "fetch_method": "tavily",
+      "description": "Extend Three.js materials with custom vertex/fragment shaders while keeping lighting, shadows, and fog working. Inject custom GLSL into MeshStandardMaterial, MeshPhysicalMaterial, etc.",
+      "keywords": ["custom shader", "shader material", "extend material", "glsl injection", "vertex shader", "fragment shader"],
+      "codesnippet": "import CustomShaderMaterial from 'three-custom-shader-material/vanilla';\nimport { MeshStandardMaterial } from 'three';\n\nconst material = new CustomShaderMaterial({\n  baseMaterial: MeshStandardMaterial,\n  vertexShader: `\n    uniform float uTime;\n    void main() {\n      vec3 pos = position;\n      pos.y += sin(pos.x * 5.0 + uTime) * 0.1;\n      csm_Position = pos;\n    }\n  `,\n  fragmentShader: `\n    uniform vec3 uColor;\n    void main() {\n      csm_DiffuseColor = vec4(uColor, 1.0);\n    }\n  `,\n  uniforms: {\n    uTime: { value: 0 },\n    uColor: { value: new THREE.Color('#ff6600') }\n  },\n  // Standard material props still work\n  metalness: 0.5,\n  roughness: 0.3\n});",
+      "dependencies": "npm install three-custom-shader-material"
+    },
+
+    "maath": {
+      "crawl_url": "https://github.com/pmndrs/maath",
+      "fetch_method": "tavily",
+      "description": "Math helpers for 3D graphics by pmndrs. Includes easing functions, interpolation, random distributions, geometry utilities, and vector operations optimized for Three.js and R3F.",
+      "keywords": ["math", "easing", "interpolation", "random", "geometry helpers", "vector math", "lerp", "smoothstep"],
+      "codesnippet": "import { easing, random, misc } from 'maath';\n\n// Smooth damping (better than lerp for animations)\neasing.damp3(mesh.position, targetPosition, 0.1, delta);\neasing.dampE(mesh.rotation, targetRotation, 0.1, delta);\n\n// Random distributions\nconst points = random.inSphere(new Float32Array(1000 * 3), { radius: 5 });\nconst circlePoints = random.onCircle(new Float32Array(100 * 2), { radius: 3 });\n\n// Geometry helpers\nmisc.degToRad(90); // Convert degrees to radians\nmisc.remap(value, 0, 1, -1, 1); // Remap value range",
+      "dependencies": "npm install maath"
+    },
+
+    "react_spring_three": {
+      "crawl_url": "https://www.react-spring.dev/docs/getting-started",
+      "fetch_method": "tavily",
+      "description": "Spring-physics based animation library for React Three Fiber. Creates fluid, natural-feeling animations for 3D objects with configurable mass, tension, and friction.",
+      "keywords": ["spring animation", "react spring", "physics animation", "fluid animation", "natural motion", "spring physics"],
+      "codesnippet": "import { useSpring, animated, config } from '@react-spring/three';\n\nfunction AnimatedBox() {\n  const [active, setActive] = useState(false);\n  \n  const { scale, color, rotation } = useSpring({\n    scale: active ? 1.5 : 1,\n    color: active ? '#ff6600' : '#00ff00',\n    rotation: active ? [0, Math.PI, 0] : [0, 0, 0],\n    config: config.wobbly // or { mass: 1, tension: 170, friction: 26 }\n  });\n  \n  return (\n    <animated.mesh\n      scale={scale}\n      rotation={rotation}\n      onClick={() => setActive(!active)}\n    >\n      <boxGeometry />\n      <animated.meshStandardMaterial color={color} />\n    </animated.mesh>\n  );\n}",
+      "dependencies": "npm install @react-spring/three"
+    },
+
+    "theatre_js": {
+      "crawl_url": "https://www.theatrejs.com/docs/latest/getting-started/with-react-three-fiber",
+      "fetch_method": "tavily",
+      "description": "Professional animation sequencer for Three.js. Timeline-based keyframe animation with visual editor. Perfect for cinematic camera movements, scroll-driven narratives, and complex choreographed animations.",
+      "keywords": ["timeline", "keyframe", "animation sequencer", "cinematic", "camera animation", "scroll animation", "choreography"],
+      "codesnippet": "import { getProject, types } from '@theatre/core';\nimport { SheetProvider, PerspectiveCamera, useCurrentSheet } from '@theatre/r3f';\n\nconst project = getProject('My Project');\nconst sheet = project.sheet('Scene');\n\nfunction Scene() {\n  const sheet = useCurrentSheet();\n  \n  // Scroll-driven animation\n  useFrame(() => {\n    const scroll = window.scrollY / (document.body.scrollHeight - window.innerHeight);\n    sheet.sequence.position = scroll * sheet.sequence.length;\n  });\n  \n  return (\n    <SheetProvider sheet={sheet}>\n      <PerspectiveCamera theatreKey=\"Camera\" makeDefault />\n      {/* Objects with theatreKey are animatable in Theatre.js studio */}\n    </SheetProvider>\n  );\n}",
+      "dependencies": "npm install @theatre/core @theatre/r3f"
+    },
+
+    "camera_controls": {
+      "crawl_url": "https://github.com/yomotsu/camera-controls",
+      "fetch_method": "tavily",
+      "description": "Advanced camera control library for Three.js. Smooth transitions, dolly, truck, rotate, zoom with damping. Azimuth/polar angle limits, fit-to-box, and collision detection. Cinema-quality camera behaviors.",
+      "keywords": ["camera controls", "smooth camera", "dolly", "truck", "orbit", "camera transition", "cinematic camera"],
+      "codesnippet": "import CameraControls from 'camera-controls';\nimport * as THREE from 'three';\n\nCameraControls.install({ THREE });\nconst controls = new CameraControls(camera, renderer.domElement);\n\n// Smooth transitions\nawait controls.setLookAt(0, 5, 10, 0, 0, 0, true); // position + target with animation\nawait controls.dolly(5, true); // dolly with animation\nawait controls.rotate(Math.PI / 4, 0, true); // rotate with animation\n\n// Fit to object\nconst box = new THREE.Box3().setFromObject(mesh);\ncontrols.fitToBox(box, true, { paddingTop: 1, paddingBottom: 1 });\n\n// In render loop\ncontrols.update(delta);",
+      "dependencies": "npm install camera-controls"
+    },
+
+    "three_mesh_bvh": {
+      "crawl_url": "https://github.com/gkjohnson/three-mesh-bvh",
+      "fetch_method": "tavily",
+      "description": "BVH (Bounding Volume Hierarchy) acceleration structure for Three.js. 10-100x faster raycasting for complex meshes. Essential for interactive 3D with many objects or detailed geometry.",
+      "keywords": ["bvh", "raycasting", "performance", "collision detection", "spatial query", "acceleration structure"],
+      "codesnippet": "import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';\n\n// Add BVH methods to Three.js\nTHREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;\nTHREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;\nTHREE.Mesh.prototype.raycast = acceleratedRaycast;\n\n// Compute BVH for geometry\ngeometry.computeBoundsTree();\n\n// Now raycasting is 10-100x faster\nconst intersects = raycaster.intersectObject(mesh);\n\n// Cleanup\ngeometry.disposeBoundsTree();",
+      "dependencies": "npm install three-mesh-bvh"
+    },
+
+    "detect_gpu": {
+      "crawl_url": "https://github.com/pmndrs/detect-gpu",
+      "fetch_method": "tavily",
+      "description": "GPU tier detection for adaptive 3D quality. Classifies devices into tiers (0-3) based on GPU capability. Use to adjust post-processing, shadows, and geometry detail for optimal performance across devices.",
+      "keywords": ["gpu detection", "performance tier", "adaptive quality", "device capability", "mobile optimization"],
+      "codesnippet": "import { getGPUTier } from 'detect-gpu';\n\nconst gpuTier = await getGPUTier();\nconsole.log(gpuTier);\n// { tier: 2, type: 'BENCHMARK', gpu: 'nvidia geforce gtx 1060' }\n\n// Adaptive quality settings\nconst quality = {\n  0: { shadows: false, postprocessing: false, geometryDetail: 'low' },\n  1: { shadows: false, postprocessing: true, geometryDetail: 'medium' },\n  2: { shadows: true, postprocessing: true, geometryDetail: 'high' },\n  3: { shadows: true, postprocessing: true, geometryDetail: 'ultra' }\n}[gpuTier.tier];",
+      "dependencies": "npm install detect-gpu"
+    },
+
+    "three_stdlib": {
+      "crawl_url": "https://github.com/pmndrs/three-stdlib",
+      "fetch_method": "tavily",
+      "description": "Essential Three.js addons as ES6 modules. Includes OrbitControls, EffectComposer, loaders (GLTF, FBX, OBJ), and many other examples from three/examples/jsm as properly typed, tree-shakeable modules.",
+      "keywords": ["three stdlib", "three addons", "orbit controls", "loaders", "tree shaking", "es6 modules"],
+      "codesnippet": "import { OrbitControls } from 'three-stdlib';\nimport { GLTFLoader } from 'three-stdlib';\nimport { EffectComposer, RenderPass, UnrealBloomPass } from 'three-stdlib';\n\n// All three/examples/jsm modules available with proper types\nconst controls = new OrbitControls(camera, renderer.domElement);\nconst loader = new GLTFLoader();\nconst composer = new EffectComposer(renderer);",
+      "dependencies": "npm install three-stdlib"
+    },
+
+    "zustand": {
+      "crawl_url": "https://github.com/pmndrs/zustand",
+      "fetch_method": "tavily",
+      "description": "Lightweight state management for React. Perfect for 3D apps - manage scene state, selected objects, camera modes, UI visibility without prop drilling or heavy context. Works seamlessly with R3F.",
+      "keywords": ["state management", "zustand", "store", "global state", "react state", "scene state"],
+      "codesnippet": "import { create } from 'zustand';\n\nconst useStore = create((set) => ({\n  selectedObject: null,\n  cameraMode: 'orbit',\n  showUI: true,\n  setSelected: (obj) => set({ selectedObject: obj }),\n  setCameraMode: (mode) => set({ cameraMode: mode }),\n  toggleUI: () => set((state) => ({ showUI: !state.showUI }))\n}));\n\n// In R3F component\nfunction Scene() {\n  const { selectedObject, setSelected } = useStore();\n  \n  return (\n    <mesh onClick={(e) => setSelected(e.object)}>\n      <boxGeometry />\n      <meshStandardMaterial color={selectedObject ? 'red' : 'blue'} />\n    </mesh>\n  );\n}",
+      "dependencies": "npm install zustand"
+    },
+
+    "leva": {
+      "crawl_url": "https://github.com/pmndrs/leva",
+      "fetch_method": "tavily",
+      "description": "React-first GUI for debugging and tweaking parameters. Beautiful, modern interface for adjusting colors, numbers, vectors, and custom controls. Essential for 3D development and creative coding.",
+      "keywords": ["gui", "debug", "leva", "controls panel", "parameter tweaking", "dev tools"],
+      "codesnippet": "import { useControls, folder } from 'leva';\n\nfunction Scene() {\n  const { position, color, intensity, metalness } = useControls({\n    position: { value: [0, 1, 0], step: 0.1 },\n    color: '#ff6600',\n    intensity: { value: 1, min: 0, max: 10, step: 0.1 },\n    material: folder({\n      metalness: { value: 0.5, min: 0, max: 1 },\n      roughness: { value: 0.3, min: 0, max: 1 }\n    })\n  });\n  \n  return (\n    <mesh position={position}>\n      <boxGeometry />\n      <meshStandardMaterial color={color} metalness={metalness} />\n    </mesh>\n  );\n}",
+      "dependencies": "npm install leva"
+    },
+
+    "use_cannon": {
+      "crawl_url": "https://github.com/pmndrs/use-cannon",
+      "fetch_method": "tavily",
+      "description": "React hooks for cannon-es physics in R3F. Declarative physics bodies, constraints, and collision events. Makes adding realistic physics to 3D scenes simple and performant.",
+      "keywords": ["physics", "cannon", "rigid body", "collision", "use-cannon", "react physics", "gravity"],
+      "codesnippet": "import { Physics, useBox, usePlane, useSphere } from '@react-three/cannon';\n\nfunction PhysicsScene() {\n  return (\n    <Physics gravity={[0, -9.81, 0]}>\n      <Ground />\n      <FallingBox />\n    </Physics>\n  );\n}\n\nfunction Ground() {\n  const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0] }));\n  return <mesh ref={ref}><planeGeometry args={[100, 100]} /></mesh>;\n}\n\nfunction FallingBox() {\n  const [ref, api] = useBox(() => ({\n    mass: 1,\n    position: [0, 5, 0],\n    onCollide: (e) => console.log('Hit!', e.body)\n  }));\n  \n  // Apply impulse on click\n  const jump = () => api.applyImpulse([0, 10, 0], [0, 0, 0]);\n  \n  return <mesh ref={ref} onClick={jump}><boxGeometry /></mesh>;\n}",
+      "dependencies": "npm install @react-three/cannon"
+    },
+
+    "tunnel_rat": {
+      "crawl_url": "https://github.com/pmndrs/tunnel-rat",
+      "fetch_method": "tavily",
+      "description": "React portals across renderers. Escape the R3F Canvas to render HTML in the DOM from within 3D components. Perfect for labels, tooltips, and UI overlays that follow 3D objects.",
+      "keywords": ["portal", "html overlay", "tunnel", "cross renderer", "labels", "tooltip"],
+      "codesnippet": "import tunnel from 'tunnel-rat';\n\nconst t = tunnel();\n\n// In your App (outside Canvas)\nfunction App() {\n  return (\n    <>\n      <Canvas>\n        <Scene />\n      </Canvas>\n      <t.Out /> {/* HTML renders here */}\n    </>\n  );\n}\n\n// Inside R3F Canvas\nfunction Scene() {\n  return (\n    <mesh>\n      <boxGeometry />\n      <t.In>\n        <div className=\"tooltip\">I'm HTML outside the canvas!</div>\n      </t.In>\n    </mesh>\n  );\n}",
+      "dependencies": "npm install tunnel-rat"
+    },
+
+    "drei_vanilla": {
+      "crawl_url": "https://github.com/pmndrs/drei-vanilla",
+      "fetch_method": "tavily",
+      "description": "Drei helpers for vanilla Three.js (without React). Includes pcss soft shadows, cloud, sparkles, and other utilities from @react-three/drei adapted for imperative Three.js code.",
+      "keywords": ["drei vanilla", "three helpers", "soft shadows", "pcss", "vanilla three"],
+      "codesnippet": "import { pcss, accumulativeShadows } from '@pmndrs/vanilla';\n\n// Enable PCSS soft shadows\npcss({\n  size: 25,\n  samples: 10,\n  focus: 0\n});\n\n// Or use accumulative shadows for baked look\nconst shadows = accumulativeShadows(renderer, {\n  frames: 40,\n  scale: 10,\n  alphaTest: 0.85\n});",
+      "dependencies": "npm install @pmndrs/vanilla"
     }
   },
 
@@ -393,6 +528,75 @@
     "css_html_3d": {
       "keywords": ["html in 3d", "css 3d", "dom element 3d", "label 3d", "html overlay"],
       "threejs_docs": ["CSS3DRenderer", "CSS3DObject", "CSS3DSprite", "CSS2DRenderer", "CSS2DObject", "HTMLMesh"]
+    },
+
+    "materials_advanced": {
+      "keywords": ["holographic", "iridescent", "caustics", "subsurface", "sss", "matcap", "opal", "fresnel", "pearlescent"],
+      "threejs_docs": ["MeshPhysicalNodeMaterial", "MeshMatcapMaterial", "MeshSSSNodeMaterial", "SimplexNoise"],
+      "external_docs": ["lamina", "three_custom_shader_material"]
+    },
+
+    "effects_creative": {
+      "keywords": ["glitch", "distortion", "liquid", "blob", "morph", "kinetic", "trails", "organic", "generative"],
+      "threejs_docs": ["RGBShiftNode", "MorphNode", "BufferGeometry"],
+      "external_docs": ["maath", "react_spring_three"]
+    },
+
+    "camera_cinematic": {
+      "keywords": ["cinematic camera", "camera path", "dolly", "crane", "smooth camera", "camera animation", "fly through"],
+      "threejs_docs": ["CatmullRomCurve3", "CubeCamera", "PerspectiveCamera"],
+      "external_docs": ["camera_controls", "theatre_js"]
+    },
+
+    "performance_advanced": {
+      "keywords": ["raycasting", "bvh", "spatial query", "gpu tier", "adaptive quality", "lod", "optimization"],
+      "threejs_docs": ["LOD", "Raycaster", "Octree", "InstancedMesh", "BatchedMesh"],
+      "external_docs": ["three_mesh_bvh", "detect_gpu"]
+    },
+
+    "lighting_advanced": {
+      "keywords": ["ies lights", "light probe", "volumetric", "god rays", "light shafts", "caustics", "global illumination"],
+      "threejs_docs": ["IESSpotLight", "LightProbe", "LightProbeGenerator", "RectAreaLight"],
+      "external_docs": ["postprocessing"]
+    },
+
+    "shader_system": {
+      "keywords": ["shader modules", "glsl modules", "shader composition", "node material", "tsl", "shader graph"],
+      "threejs_docs": ["TSL", "NodeMaterial", "ShaderMaterial", "RawShaderMaterial", "NodeBuilder"],
+      "external_docs": ["three_custom_shader_material", "lamina"]
+    },
+
+    "animation_advanced": {
+      "keywords": ["timeline", "sequencer", "keyframe editor", "spring physics", "procedural animation", "motion design"],
+      "threejs_docs": ["AnimationMixer", "AnimationClip", "AnimationAction"],
+      "external_docs": ["theatre_js", "react_spring_three"]
+    },
+
+    "gui_debug": {
+      "keywords": ["gui", "debug", "tweakpane", "leva", "controls panel", "dev tools", "parameter tuning"],
+      "threejs_docs": [],
+      "external_docs": ["leva"]
+    },
+
+    "displacement_deformation": {
+      "keywords": ["displacement", "vertex displacement", "mesh deform", "terrain", "heightmap", "wave", "ripple mesh"],
+      "threejs_docs": ["PlaneGeometry", "BufferGeometry", "BufferAttribute", "SimplexNoise"]
+    },
+
+    "ssr_ssgi": {
+      "keywords": ["screen space reflection", "ssr", "ssgi", "realistic lighting", "ray marching", "pbr advanced"],
+      "threejs_docs": ["MeshPhysicalMaterial", "PMREMGenerator"],
+      "external_docs": ["postprocessing"]
+    },
+
+    "npr_toon": {
+      "keywords": ["toon", "cel shading", "npr", "cartoon", "stylized", "outline", "hatching", "sketch"],
+      "threejs_docs": ["MeshToonMaterial", "MeshToonNodeMaterial", "OutlinePass"]
+    },
+
+    "instancing_advanced": {
+      "keywords": ["massive instancing", "millions of objects", "gpu instancing", "batched mesh", "crowd", "forest"],
+      "threejs_docs": ["InstancedMesh", "BatchedMesh", "InstancedBufferAttribute", "InstancedBufferGeometry"]
     }
   },
 

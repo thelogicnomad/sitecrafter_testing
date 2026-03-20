@@ -640,8 +640,8 @@ DESIGN TOKENS:
 - Emissive: ${designTokens.colors.emissive}
 - Background: ${designTokens.colors.background}
 
-RAG CONTEXT (available Three.js features):
-${ragContext.intentTags.join(', ')}
+RAG CONTEXT (Three.js & Library Documentation):
+${this.formatRAGDocsForBlueprint(ragContext)}
 
 Generate 5-7 scenes: Hero, Features, Showcase, About/Story, CTA, and optionally Contact, Testimonials.
 Return ONLY the JSON array.`;
@@ -656,7 +656,7 @@ Return ONLY the JSON array.`;
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: userMessage },
                     ],
-                    temperature: 0.8,
+                    temperature: 0.7, // Lowered from 0.8 - more grounded with better docs
                 });
 
                 const content = response.choices[0]?.message?.content || '[]';
@@ -1132,6 +1132,52 @@ Objects: ${s.objects.map(o => o.name).join(', ')}
     // ============================================================
 
     /**
+     * Format RAG documentation for scene blueprint generation.
+     * Provides full documentation content so the LLM can learn from real Three.js patterns.
+     */
+    private static formatRAGDocsForBlueprint(ragContext: RAGContext): string {
+        const sections: string[] = [];
+
+        sections.push('=== THREE.JS API DOCUMENTATION ===\n');
+
+        // Include substantial doc content (up to 30 docs, 1500 chars each)
+        const threejsDocs = ragContext.threejsDocs || [];
+        for (const doc of threejsDocs.slice(0, 30)) {
+            sections.push(`### ${doc.name}`);
+            const summary = typeof doc.summary === 'string' ? doc.summary : '';
+            sections.push(summary.slice(0, 1500));
+
+            if (doc.codeSnippet) {
+                sections.push('```tsx');
+                sections.push(doc.codeSnippet.slice(0, 800));
+                sections.push('```');
+            }
+            sections.push(''); // blank line separator
+        }
+
+        sections.push('\n=== EXTERNAL LIBRARY DOCUMENTATION ===\n');
+
+        const externalDocs = ragContext.externalDocs || [];
+        for (const doc of externalDocs) {
+            sections.push(`### ${doc.name}`);
+            const summary = typeof doc.summary === 'string' ? doc.summary : '';
+            sections.push(summary.slice(0, 1000));
+
+            if (doc.codeSnippet) {
+                sections.push('```tsx');
+                sections.push(doc.codeSnippet.slice(0, 800));
+                sections.push('```');
+            }
+            sections.push('');
+        }
+
+        sections.push('\n=== INTENT TAGS ===');
+        sections.push(`Active features: ${ragContext.intentTags.join(', ')}`);
+
+        return sections.join('\n');
+    }
+
+    /**
      * Get GLSL shader code templates for custom materials
      */
     private static getShaderTemplates(): string {
@@ -1510,7 +1556,7 @@ function InteractiveScene() {
     /**
      * Serialize master context for LLM consumption with full documentation
      */
-    static serializeForLLM(context: MasterContext3D, maxTokens: number = 15000): string {
+    static serializeForLLM(context: MasterContext3D, maxTokens: number = 40000): string {
         const sections: string[] = [];
 
         // Brand and business DNA
@@ -1557,9 +1603,15 @@ function InteractiveScene() {
         if (context.ragContext.threejsDocs.length > 0) {
             sections.push('## Three.js Documentation');
             sections.push(`Available docs (${context.ragContext.threejsDocs.length}):`);
-            for (const doc of context.ragContext.threejsDocs.slice(0, 10)) {
+            // Increased from 10 docs @ 400 chars to 25 docs @ 1200 chars for richer context
+            for (const doc of context.ragContext.threejsDocs.slice(0, 25)) {
                 sections.push(`### ${doc.name}`);
-                sections.push(doc.summary.slice(0, 400));
+                sections.push(doc.summary.slice(0, 1200));
+                if (doc.codeSnippet) {
+                    sections.push('```tsx');
+                    sections.push(doc.codeSnippet.slice(0, 800));
+                    sections.push('```');
+                }
                 sections.push('');
             }
         }
@@ -1569,10 +1621,10 @@ function InteractiveScene() {
             sections.push('## External Libraries');
             for (const doc of context.ragContext.externalDocs) {
                 sections.push(`### ${doc.name}`);
-                sections.push(doc.summary.slice(0, 300));
+                sections.push(doc.summary.slice(0, 800)); // Increased from 300 for more context
                 if (doc.codeSnippet) {
                     sections.push('```tsx');
-                    sections.push(doc.codeSnippet.slice(0, 400));
+                    sections.push(doc.codeSnippet.slice(0, 600)); // Increased from 400
                     sections.push('```');
                 }
                 sections.push('');

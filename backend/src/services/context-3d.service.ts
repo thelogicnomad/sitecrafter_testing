@@ -170,13 +170,12 @@ export async function resolveContext(intentTags: string[]): Promise<ResolvedCont
     let uniqueThreejsNames = Array.from(threejsDocNames);
     const coreCount = contextMap.core_docs_always_included.length;
 
-    // Increased from coreCount + 8 to coreCount + 14 so that unique intent-tag docs
-    // actually reach the generator LLM instead of being silently dropped. This is the
-    // main reason both sites looked identical — only 8 extra docs were allowed through,
-    // and those slots were being consumed by lighting/post_processing tags that added
-    // docs already present in core, leaving zero room for truly unique content.
-    if (uniqueThreejsNames.length > coreCount + 14) {
-        uniqueThreejsNames = uniqueThreejsNames.slice(0, coreCount + 14);
+    // Increased from coreCount + 8 to coreCount + 14, then to coreCount + 20 (40 total docs)
+    // to enable advanced techniques like SSR, custom shader materials, cinematic cameras,
+    // and performance optimization. This ensures unique intent-tag docs reach the generator
+    // LLM with room for truly impressive 3D effects.
+    if (uniqueThreejsNames.length > coreCount + 20) {
+        uniqueThreejsNames = uniqueThreejsNames.slice(0, coreCount + 20);
     }
     const uniqueExternalKeys = Array.from(externalLibKeys);
 
@@ -196,7 +195,7 @@ export async function resolveContext(intentTags: string[]): Promise<ResolvedCont
             if (content.length < 30) {
                 return { name, content: '' };
             }
-            return { name, content: content.slice(0, 8000) };
+            return { name, content: content.slice(0, 12000) }; // Increased to 12KB for richer documentation
         } catch (err: any) {
             console.warn(`[context-3d] Three.js fetch failed for "${name}": ${err.message?.slice(0, 60)}`);
             return { name, content: '' };

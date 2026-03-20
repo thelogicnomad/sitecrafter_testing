@@ -576,23 +576,25 @@ ${state.importInstructions}
 ${build3DPageContext(state)}`;
 
   try {
-    // ──── PER-PAGE GENERATION LOOP (3D) ────
-    // Instead of one giant LLM call for all pages, generate each page individually
-    // so each gets the full 65K output budget and only its assigned scenes
+    // ──── PARALLEL PAGE GENERATION (3D) ────
+    // Generate all pages concurrently for maximum speed, like components
     if (is3D) {
       const scenePageMap = (state as any).scenePageMap || {};
-      const allParsedFiles: { path: string; content: string }[] = [];
 
-      for (const page of blueprint.pages) {
-        const pageName = page.name.replace(/\s+/g, '');
-        const pageFileName = `src/pages/${pageName}.tsx`;
-        console.log(`\n   [3D Pages] Generating ${pageName} individually...`);
+      console.log('\n   [3D Pages] Generating pages (parallel)...');
 
-        // Build page-specific scene context from scenePageMap
-        const assignedScenes = scenePageMap[pageName] || [];
-        const pageSpecificSceneContext = buildPageSpecificSceneContext(state, assignedScenes, page);
+      // Generate all pages in parallel
+      const results = await Promise.allSettled(
+        blueprint.pages.map(async (page) => {
+          const pageName = page.name.replace(/\s+/g, '');
+          const pageFileName = `src/pages/${pageName}.tsx`;
+          console.log(`     [gen] ${pageName}`);
 
-        const singlePagePrompt = `Generate ONLY the page component for "${pageName}" (file: ${pageFileName}).
+          // Build page-specific scene context from scenePageMap
+          const assignedScenes = scenePageMap[pageName] || [];
+          const pageSpecificSceneContext = buildPageSpecificSceneContext(state, assignedScenes, page);
+
+          const singlePagePrompt = `Generate ONLY the page component for "${pageName}" (file: ${pageFileName}).
 Output EXACTLY ONE <chirAction> tag for this ONE page.
 
 ${imagesContext}
@@ -644,19 +646,21 @@ ${state.importInstructions || ''}
 
 Wrap in <chirAction type="file" filePath="${pageFileName}"> tags.`;
 
-        try {
           const pageResponse = await invokeLLM(systemPrompt, singlePagePrompt, 0.7);
           const pageParsedFiles = parseChirActions(pageResponse);
 
-          if (pageParsedFiles.length > 0) {
-            // Take only the file matching this page
-            const matchedFile = pageParsedFiles.find(f => f.path.includes(pageName)) || pageParsedFiles[0];
-            const finalFile = { path: pageFileName, content: matchedFile.content };
+          if (pageParsedFiles.length === 0) {
+            throw new Error(`No output for ${pageName}`);
+          }
 
-            // Immediate thin-page detection
-            if (finalFile.content.length < 9000) {
-              console.log(`   [3D Pages] THIN PAGE: ${pageName} (${finalFile.content.length} chars) -- regenerating`);
-              const regenPrompt = `PREVIOUS VERSION OF ${pageName} WAS TOO THIN (${finalFile.content.length} characters).
+          // Take only the file matching this page
+          const matchedFile = pageParsedFiles.find(f => f.path.includes(pageName)) || pageParsedFiles[0];
+          let finalFile = { path: pageFileName, content: matchedFile.content };
+
+          // Immediate thin-page detection
+          if (finalFile.content.length < 9000) {
+            console.log(`     [regen] ${pageName} (thin: ${finalFile.content.length} chars)`);
+            const regenPrompt = `PREVIOUS VERSION OF ${pageName} WAS TOO THIN (${finalFile.content.length} characters).
 
 REGENERATE ${pageName} FROM SCRATCH with maximum richness:
 - Minimum 150 lines of actual TypeScript/JSX code
@@ -671,32 +675,34 @@ REGENERATE ${pageName} FROM SCRATCH with maximum richness:
 File path: ${pageFileName}
 Wrap in <chirAction type="file" filePath="${pageFileName}"> tags.`;
 
-              try {
-                const regenResponse = await invokeLLM(systemPrompt, regenPrompt, 0.7);
-                const regenFiles = parseChirActions(regenResponse);
-                if (regenFiles.length > 0 && regenFiles[0].content.length > finalFile.content.length) {
-                  console.log(`   [3D Pages] Regenerated ${pageName}: ${regenFiles[0].content.length} chars`);
-                  finalFile.content = regenFiles[0].content;
-                }
-              } catch (regenErr: any) {
-                console.warn(`   [3D Pages] Regen failed for ${pageName}: ${regenErr.message?.slice(0, 60)}`);
+            try {
+              const regenResponse = await invokeLLM(systemPrompt, regenPrompt, 0.7);
+              const regenFiles = parseChirActions(regenResponse);
+              if (regenFiles.length > 0 && regenFiles[0].content.length > finalFile.content.length) {
+                console.log(`     [done] ${pageName}: ${regenFiles[0].content.length} chars`);
+                finalFile.content = regenFiles[0].content;
               }
+            } catch (regenErr: any) {
+              console.warn(`     [regen-fail] ${pageName}: ${regenErr.message?.slice(0, 60)}`);
             }
-
-            // Immediate post-patch (import injection + JSX injection)
-            finalFile.content = postPatch3DPage(finalFile.content, pageName, assignedScenes, state);
-
-            allParsedFiles.push(finalFile);
-            console.log(`   [3D Pages] ${pageName}: ${finalFile.content.length} chars (${assignedScenes.length} scenes)`);
-          } else {
-            console.warn(`   [3D Pages] No output for ${pageName}, skipping`);
           }
-        } catch (pageErr: any) {
-          console.error(`   [3D Pages] Failed to generate ${pageName}: ${pageErr.message?.slice(0, 80)}`);
-        }
-      }
 
-      for (const { path, content } of allParsedFiles) {
+          // Immediate post-patch (import injection + JSX injection)
+          finalFile.content = postPatch3DPage(finalFile.content, pageName, assignedScenes, state);
+
+          console.log(`     [done] ${pageName}: ${finalFile.content.length} chars (${assignedScenes.length} scenes)`);
+          return finalFile;
+        })
+      );
+
+      // Process results
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          console.error(`   [3D Pages] Failed: ${result.reason?.message?.slice(0, 80)}`);
+          continue;
+        }
+
+        const { path, content } = result.value;
         await addFileWithMemory(files, registry, path, content, 'page', state.projectId);
       }
 

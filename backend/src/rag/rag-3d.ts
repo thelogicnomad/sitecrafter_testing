@@ -14,7 +14,7 @@ import fs from "fs";
 const HNSW_PERSIST_DIR = path.resolve(__dirname, "../../hnsw_3d_docs");
 const CHUNK_SIZE = 512;
 const CHUNK_OVERLAP = 100;
-const TOP_K = 12;
+const TOP_K = 18; // Increased from 12 for deeper RAG coverage of advanced 3D techniques
 const EMBED_BATCH_SIZE = 5;
 const EMBED_BATCH_DELAY = 2500;
 const SCRAPE_DELAY = 250;
