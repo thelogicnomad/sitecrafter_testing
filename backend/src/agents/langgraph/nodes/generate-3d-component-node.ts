@@ -11,6 +11,8 @@
  *  - Quality gate catches only runtime / type CRASH bugs - not style issues.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { WebsiteState, GeneratedFile, createRegistryEntry } from '../graph-state';
 import { invokeLLM, parseChirActions, extractExports, extractImports } from '../llm-utils';
 import { getMemoryContext, updateMemory3D } from '../project-memory';
@@ -19,6 +21,24 @@ import { notifyFileCreated, notifyPhaseChange } from '../website-graph';
 import { MasterContext3DService } from '../../../services/master-context-3d.service';
 import { MasterContext3D, SceneBlueprint, BusinessDNA as MasterBusinessDNA } from '../../../types/master-context-3d.types';
 import OpenAI from 'openai';
+
+const THREEJS_REF_PATH = path.resolve(process.cwd(), '3dt-threejs.txt');
+let _cachedThreeJSRef: string | null = null;
+
+function loadThreeJSReference(): string {
+    if (_cachedThreeJSRef) return _cachedThreeJSRef;
+    try {
+        const raw = fs.readFileSync(THREEJS_REF_PATH, 'utf-8');
+        const lines = raw.split('\n');
+        const usefulLines = lines.slice(0, 1900);
+        _cachedThreeJSRef = usefulLines.join('\n');
+        console.log(`[3D-Ref] Loaded 3dt-threejs.txt (${_cachedThreeJSRef.length} chars, ${usefulLines.length} lines)`);
+    } catch (err) {
+        console.warn(`[3D-Ref] Could not load 3dt-threejs.txt: ${err}`);
+        _cachedThreeJSRef = '';
+    }
+    return _cachedThreeJSRef;
+}
 
 // ─── API Key Pool ────────────────────────────────────────────────────────────
 
@@ -404,9 +424,11 @@ Return ONLY a JSON array:
  * DNA-driven — no per-section hardcoding.
  */
 function buildSceneSystemPrompt(dna: BusinessDNA): string {
+    const threeRef = loadThreeJSReference();
+
     return `You are the world's greatest 3D web developer.
 Your sites win Awwwards Site of the Year. You think like Bruno Simon, Aristide Benoist, and Active Theory.
-You write COMPLETE code — no TODOs, no placeholders, no abbreviated sections.
+You write COMPLETE code -- no TODOs, no placeholders, no abbreviated sections.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BUSINESS DNA (obey every line)
@@ -439,40 +461,58 @@ ARCHITECTURE:
 - Export BOTH named AND default: export const X = ...; export default X;
 
 MINIMUM QUALITY STANDARDS (every component MUST meet ALL):
-1. At least 200 lines of real TypeScript/JSX code
-2. At least 3 distinct geometry types — never repeat the same geometry twice
+1. At least 250 lines of real TypeScript/JSX code
+2. At least 3 distinct geometry types -- never repeat the same geometry twice
 3. At least 3 useFrame loops each with a different purpose
 4. At least 1 custom shaderMaterial with vertexShader + fragmentShader strings and a uTime uniform animated in useFrame
 5. At least 1 scroll-reactive section using useScroll() from @react-three/drei
 6. At least 1 mouse-reactive section using useThree().pointer
 7. At least 3 light sources (ambientLight + 2 others)
 8. Foreground layer (z=2..5), midground (z=-1..1), background (z=-5..-10)
-9. All animations use THREE.MathUtils.lerp — no sudden jumps
+9. All animations use THREE.MathUtils.lerp -- no sudden jumps
 10. Interface defined for any props; no implicit any
 
-INTERACTIVITY (mandatory — this is what makes sites win awards):
+INTERACTIVITY (mandatory -- this is what makes sites win awards):
 - Mouse parallax: objects subtly shift toward pointer using useThree().pointer + lerp
 - Hover: onPointerOver raises emissiveIntensity, scales up; onPointerOut reverses
-- Scroll: map useScroll().offset to at minimum 2 visual properties (rotation, opacity, emissive, fog density, particle count, etc.)
+- Scroll: map useScroll().offset to at minimum 3 visual properties (rotation, opacity, emissive, fog density, particle count, position, scale, etc.)
 - 3-ACT SCROLL NARRATIVE:
-    Act 1 (offset 0.0–0.33): dark, sparse, curious — establish the world
-    Act 2 (offset 0.33–0.66): objects coalesce, light intensifies, reveal — create wonder
-    Act 3 (offset 0.66–1.0): energy peak, everything alive, vibrant — inspire action
+    Act 1 (offset 0.0-0.33): dark, sparse, curious -- establish the world
+    Act 2 (offset 0.33-0.66): objects coalesce, light intensifies, reveal -- create wonder
+    Act 3 (offset 0.66-1.0): energy peak, everything alive, vibrant -- inspire action
 
 CINEMATIC CAMERA (for hero/full-page scenes):
-- CatmullRomCurve3 with ≥6 control points
+- CatmullRomCurve3 with >=6 control points
 - camera.position.lerp to curve.getPoint(scroll.offset) in useFrame
 - camera.lookAt(0, 0, 0)
 
 PARTICLE SYSTEM (for hero and feature scenes):
-- BufferGeometry with 2000–5000 particles
-- Morph between 2–3 shapes tied to scroll offset using lerp
-- pointsMaterial or custom shader — NOT Sparkles for this
+- BufferGeometry with 2000-5000 particles
+- Morph between 2-3 shapes tied to scroll offset using lerp
+- pointsMaterial or custom shader -- NOT Sparkles for this
 
-CUSTOM GLSL SHADER (required):
+CUSTOM GLSL SHADER (required in EVERY scene):
 Choose the style matching this business's dna.shaderStyle.
 Shader must include uTime uniform animated each frame.
 At minimum: a background plane using the shader + one mesh using it.
+Use fresnel effects, noise distortion, vertex displacement, or procedural patterns.
+
+PREMIUM DREI HELPERS (use these for visual richness):
+- Float: gentle levitation for objects (speed, rotationIntensity, floatIntensity)
+- MeshDistortMaterial: organic blob distortion (distort, speed, roughness, metalness)
+- MeshWobbleMaterial: wobbling surfaces (factor, speed)
+- MeshReflectorMaterial: reflective floor/ground planes (blur, resolution, mixBlur, mirror)
+- Cloud: volumetric cloud groups (opacity, speed, segments)
+- Sparkles: ambient floating sparkles (count, size, speed, color, scale)
+- Stars: starfield background (radius, depth, count, factor, saturation)
+- Trail: motion trails behind moving objects (width, length, color, attenuation)
+- ContactShadows: soft contact shadows under objects (opacity, blur, far, resolution)
+- Environment: IBL lighting presets (preset: apartment|city|dawn|forest|lobby|night|park|studio|sunset|warehouse)
+- Lightformer: custom shaped lights inside Environment (intensity, color, form: ring|rect|circle)
+- Sky: procedural sky with sun (distance, sunPosition, inclination, azimuth)
+- useScroll: scroll offset for scroll-driven animations
+- Billboard: auto-face camera
+- GradientTexture: procedural gradient for materials
 
 MATERIAL CASING (critical):
 LOWERCASE = Three.js intrinsics: meshPhysicalMaterial, meshStandardMaterial, shaderMaterial, pointsMaterial
@@ -491,10 +531,15 @@ ABSOLUTE BANS (any violation = regenerate):
 
 OUTPUT FORMAT:
 <chirAction type="file" filePath="PATH">
-// complete code — 200+ lines minimum
+// complete code -- 250+ lines minimum
 </chirAction>
 
-ONE chirAction. ONE file. No markdown. No explanation.`;
+ONE chirAction. ONE file. No markdown. No explanation.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THREE.JS / TSL COMPLETE REFERENCE (use for correct API usage)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${threeRef}`;
 }
 
 /**
@@ -828,8 +873,32 @@ function runQualityGate(code: string, spec: SectionSpec): QualityIssue[] {
                 message: `${refName}.current accessed without null check`,
                 mustFix: false
             });
-            break; // one report per file is enough
+            break;
         }
+    }
+
+    if (isScene && !code.includes('useScroll')) {
+        issues.push({
+            severity: 'TYPE_ERROR', code: 'NO_SCROLL',
+            message: 'Scene must use useScroll() from @react-three/drei for scroll-driven animations',
+            mustFix: true
+        });
+    }
+
+    if (isScene && !code.includes('useFrame')) {
+        issues.push({
+            severity: 'CRASH', code: 'NO_USEFRAME',
+            message: 'Scene must have at least one useFrame loop for animation',
+            mustFix: true
+        });
+    }
+
+    if (isScene && !code.includes('shaderMaterial') && !code.includes('fragmentShader') && !code.includes('ShaderMaterial')) {
+        issues.push({
+            severity: 'TYPE_ERROR', code: 'NO_CUSTOM_SHADER',
+            message: 'Scene must include at least one custom shaderMaterial with vertexShader + fragmentShader',
+            mustFix: true
+        });
     }
 
     return issues;

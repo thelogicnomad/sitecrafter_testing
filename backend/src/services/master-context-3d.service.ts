@@ -478,8 +478,7 @@ Return ONLY a JSON array of strings.`;
             }
         }
 
-        // Fallback
-        return ['particles', 'scroll_animation', 'shaders_custom', 'environment_maps', 'animation'];
+        return ['particles', 'scroll_animation', 'shaders_custom', 'lighting', 'animation'];
     }
 
     /**
@@ -512,8 +511,7 @@ Return ONLY a JSON array of strings.`;
             try {
                 const response = await axios.get(url, { timeout: 8000, responseType: 'text' });
                 const content = (response.data as string).trim();
-                // Create summary (first 500 chars)
-                const summary = content.slice(0, 500) + (content.length > 500 ? '...' : '');
+                const summary = content.slice(0, 4000);
                 return { name, summary };
             } catch {
                 return { name, summary: `[Documentation for ${name}]` };
@@ -534,7 +532,7 @@ Return ONLY a JSON array of strings.`;
                     );
                     const results = data?.results || [];
                     if (results[0]?.raw_content) {
-                        const content = (results[0].raw_content as string).slice(0, 2000);
+                        const content = (results[0].raw_content as string).slice(0, 6000);
                         return { name: key, summary: content, codeSnippet: lib.codesnippet };
                     }
                 } else if (uniqueExternalKeys.length > 0) {
@@ -1049,7 +1047,7 @@ Return ONLY the JSON array.`;
             'react': '^18.3.1',
             'react-dom': '^18.3.1',
             'react-router-dom': '^6.22.0',
-            'three': '^0.163.0',
+            'three': '^0.183.1',
             '@react-three/fiber': '^8.16.0',
             '@react-three/drei': '^9.102.0',
             '@react-three/postprocessing': '^2.16.0',
@@ -1140,19 +1138,18 @@ Objects: ${s.objects.map(o => o.name).join(', ')}
 
         sections.push('=== THREE.JS API DOCUMENTATION ===\n');
 
-        // Include substantial doc content (up to 30 docs, 1500 chars each)
         const threejsDocs = ragContext.threejsDocs || [];
-        for (const doc of threejsDocs.slice(0, 30)) {
+        for (const doc of threejsDocs.slice(0, 40)) {
             sections.push(`### ${doc.name}`);
             const summary = typeof doc.summary === 'string' ? doc.summary : '';
-            sections.push(summary.slice(0, 1500));
+            sections.push(summary);
 
             if (doc.codeSnippet) {
                 sections.push('```tsx');
-                sections.push(doc.codeSnippet.slice(0, 800));
+                sections.push(doc.codeSnippet);
                 sections.push('```');
             }
-            sections.push(''); // blank line separator
+            sections.push('');
         }
 
         sections.push('\n=== EXTERNAL LIBRARY DOCUMENTATION ===\n');
@@ -1161,11 +1158,11 @@ Objects: ${s.objects.map(o => o.name).join(', ')}
         for (const doc of externalDocs) {
             sections.push(`### ${doc.name}`);
             const summary = typeof doc.summary === 'string' ? doc.summary : '';
-            sections.push(summary.slice(0, 1000));
+            sections.push(summary);
 
             if (doc.codeSnippet) {
                 sections.push('```tsx');
-                sections.push(doc.codeSnippet.slice(0, 800));
+                sections.push(doc.codeSnippet);
                 sections.push('```');
             }
             sections.push('');
@@ -1182,48 +1179,207 @@ Objects: ${s.objects.map(o => o.name).join(', ')}
      */
     private static getShaderTemplates(): string {
         return `
-### Vertex Shader (Basic)
+### Vertex Shader (Base with displacement)
 \`\`\`glsl
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vPosition;
+varying vec3 vWorldPosition;
 
 void main() {
   vUv = uv;
   vNormal = normalize(normalMatrix * normal);
   vPosition = position;
+  vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 \`\`\`
 
-### Fragment Shader (Holographic Effect)
+### Fragment Shader (Aurora / Northern Lights)
+\`\`\`glsl
+uniform float uTime;
+uniform vec3 uColor1;
+uniform vec3 uColor2;
+uniform vec3 uColor3;
+varying vec2 vUv;
+varying vec3 vNormal;
+
+void main() {
+  float wave1 = sin(vUv.x * 6.0 + uTime * 0.7) * 0.5 + 0.5;
+  float wave2 = sin(vUv.x * 4.0 - uTime * 0.5 + 2.0) * 0.5 + 0.5;
+  float wave3 = sin(vUv.y * 8.0 + uTime * 0.3) * 0.5 + 0.5;
+  float mask = smoothstep(0.2, 0.8, vUv.y + wave1 * 0.3);
+  vec3 col = mix(uColor1, uColor2, wave1);
+  col = mix(col, uColor3, wave2 * wave3);
+  float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.5);
+  col += fresnel * uColor2 * 0.6;
+  float alpha = mask * (0.4 + fresnel * 0.6);
+  gl_FragColor = vec4(col, alpha);
+}
+\`\`\`
+
+### Fragment Shader (Liquid Metal)
 \`\`\`glsl
 uniform float uTime;
 uniform vec3 uColor;
 varying vec2 vUv;
 varying vec3 vNormal;
+varying vec3 vWorldPosition;
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
 
 void main() {
-  float fresnel = pow(1.0 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0);
-  vec3 hologram = uColor * (fresnel + 0.2);
-  float scanline = sin(vUv.y * 100.0 + uTime * 5.0) * 0.1 + 0.9;
-  gl_FragColor = vec4(hologram * scanline, 0.8);
+  float n = noise(vUv * 5.0 + uTime * 0.3) * 0.5 +
+            noise(vUv * 10.0 - uTime * 0.2) * 0.25 +
+            noise(vUv * 20.0 + uTime * 0.1) * 0.125;
+  float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 3.0);
+  vec3 reflection = uColor * (0.6 + n * 0.8);
+  vec3 col = mix(reflection, vec3(1.0), fresnel * 0.7);
+  col += uColor * fresnel * 0.5;
+  gl_FragColor = vec4(col, 1.0);
 }
 \`\`\`
 
-### Fragment Shader (Energy Field)
+### Vertex Shader (Noise Terrain Displacement)
+\`\`\`glsl
+uniform float uTime;
+uniform float uAmplitude;
+varying vec2 vUv;
+varying float vElevation;
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float noise(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i+vec2(1,0)), f.x),
+             mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+}
+
+void main() {
+  vUv = uv;
+  float elevation = noise(uv * 4.0 + uTime * 0.15) * uAmplitude;
+  elevation += noise(uv * 8.0 - uTime * 0.1) * uAmplitude * 0.5;
+  vElevation = elevation;
+  vec3 pos = position + normal * elevation;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}
+\`\`\`
+
+### Fragment Shader (Fresnel Rim Glow)
+\`\`\`glsl
+uniform float uTime;
+uniform vec3 uGlowColor;
+uniform float uGlowPower;
+varying vec3 vNormal;
+varying vec3 vPosition;
+
+void main() {
+  vec3 viewDir = normalize(cameraPosition - vPosition);
+  float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), uGlowPower);
+  float pulse = sin(uTime * 2.0) * 0.15 + 0.85;
+  vec3 col = uGlowColor * fresnel * pulse * 2.0;
+  float alpha = fresnel * 0.9;
+  gl_FragColor = vec4(col, alpha);
+}
+\`\`\`
+
+### Fragment Shader (Dissolve / Disintegration)
+\`\`\`glsl
+uniform float uTime;
+uniform float uProgress;
+uniform vec3 uEdgeColor;
+uniform vec3 uBaseColor;
+varying vec2 vUv;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+float noise(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p);
+  f = f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
+             mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+}
+
+void main() {
+  float n = noise(vUv * 8.0) * 0.5 + noise(vUv * 16.0) * 0.25 + noise(vUv * 32.0) * 0.125;
+  float edge = smoothstep(uProgress - 0.05, uProgress, n) - smoothstep(uProgress, uProgress + 0.05, n);
+  if (n < uProgress) discard;
+  vec3 col = mix(uBaseColor, uEdgeColor, edge * 3.0);
+  col += uEdgeColor * edge * 2.0;
+  gl_FragColor = vec4(col, 1.0);
+}
+\`\`\`
+
+### Fragment Shader (Iridescent / Thin-Film)
+\`\`\`glsl
+uniform float uTime;
+varying vec3 vNormal;
+varying vec3 vPosition;
+
+void main() {
+  vec3 viewDir = normalize(cameraPosition - vPosition);
+  float angle = dot(viewDir, vNormal);
+  float shift = angle * 6.28 + uTime * 0.5;
+  vec3 iridescence = vec3(
+    sin(shift) * 0.5 + 0.5,
+    sin(shift + 2.094) * 0.5 + 0.5,
+    sin(shift + 4.189) * 0.5 + 0.5
+  );
+  float fresnel = pow(1.0 - abs(angle), 2.0);
+  vec3 col = mix(vec3(0.05), iridescence, fresnel * 0.8 + 0.2);
+  col += iridescence * fresnel * 0.3;
+  gl_FragColor = vec4(col, 0.85 + fresnel * 0.15);
+}
+\`\`\`
+
+### Fragment Shader (Plasma Energy)
 \`\`\`glsl
 uniform float uTime;
 uniform vec3 uColor;
 varying vec2 vUv;
 
 void main() {
-  vec2 center = vec2(0.5);
-  float dist = distance(vUv, center);
-  float pulse = sin(dist * 10.0 - uTime * 2.0) * 0.5 + 0.5;
-  vec3 color = uColor * pulse;
-  float alpha = (1.0 - dist) * 0.8;
-  gl_FragColor = vec4(color, alpha);
+  float v1 = sin(vUv.x * 10.0 + uTime);
+  float v2 = sin(vUv.y * 10.0 + uTime * 0.5);
+  float v3 = sin((vUv.x + vUv.y) * 10.0 + uTime * 0.7);
+  float v4 = sin(sqrt(vUv.x * vUv.x + vUv.y * vUv.y) * 10.0 + uTime);
+  float plasma = (v1 + v2 + v3 + v4) * 0.25;
+  vec3 col = uColor * (plasma * 0.5 + 0.5);
+  col = pow(col, vec3(0.8));
+  float glow = smoothstep(0.3, 0.7, plasma * 0.5 + 0.5);
+  col += uColor * glow * 0.4;
+  gl_FragColor = vec4(col, 0.85);
+}
+\`\`\`
+
+### Vertex Shader (Particle Nebula Morph)
+\`\`\`glsl
+uniform float uTime;
+uniform float uMorph;
+attribute vec3 targetPosition;
+varying float vAlpha;
+
+void main() {
+  vec3 morphed = mix(position, targetPosition, uMorph);
+  morphed += sin(morphed * 2.0 + uTime) * 0.1;
+  vAlpha = 0.3 + 0.7 * (1.0 - length(morphed) * 0.15);
+  vec4 mvPosition = modelViewMatrix * vec4(morphed, 1.0);
+  gl_PointSize = (150.0 / -mvPosition.z) * (0.5 + sin(uTime + float(gl_VertexID) * 0.01) * 0.3);
+  gl_Position = projectionMatrix * mvPosition;
 }
 \`\`\`
 
@@ -1236,7 +1392,7 @@ import * as THREE from 'three';
 const vertexShader = \`...\`;
 const fragmentShader = \`...\`;
 
-function HolographicMesh() {
+function CustomShaderMesh() {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   useFrame((state) => {
@@ -1599,32 +1755,29 @@ function InteractiveScene() {
         }
         sections.push('');
 
-        // Three.js documentation snippets
         if (context.ragContext.threejsDocs.length > 0) {
             sections.push('## Three.js Documentation');
             sections.push(`Available docs (${context.ragContext.threejsDocs.length}):`);
-            // Increased from 10 docs @ 400 chars to 25 docs @ 1200 chars for richer context
-            for (const doc of context.ragContext.threejsDocs.slice(0, 25)) {
+            for (const doc of context.ragContext.threejsDocs.slice(0, 40)) {
                 sections.push(`### ${doc.name}`);
-                sections.push(doc.summary.slice(0, 1200));
+                sections.push(doc.summary);
                 if (doc.codeSnippet) {
                     sections.push('```tsx');
-                    sections.push(doc.codeSnippet.slice(0, 800));
+                    sections.push(doc.codeSnippet);
                     sections.push('```');
                 }
                 sections.push('');
             }
         }
 
-        // External library documentation
         if (context.ragContext.externalDocs.length > 0) {
             sections.push('## External Libraries');
             for (const doc of context.ragContext.externalDocs) {
                 sections.push(`### ${doc.name}`);
-                sections.push(doc.summary.slice(0, 800)); // Increased from 300 for more context
+                sections.push(doc.summary);
                 if (doc.codeSnippet) {
                     sections.push('```tsx');
-                    sections.push(doc.codeSnippet.slice(0, 600)); // Increased from 400
+                    sections.push(doc.codeSnippet);
                     sections.push('```');
                 }
                 sections.push('');

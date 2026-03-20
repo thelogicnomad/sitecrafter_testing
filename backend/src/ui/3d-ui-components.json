@@ -597,6 +597,137 @@
     "instancing_advanced": {
       "keywords": ["massive instancing", "millions of objects", "gpu instancing", "batched mesh", "crowd", "forest"],
       "threejs_docs": ["InstancedMesh", "BatchedMesh", "InstancedBufferAttribute", "InstancedBufferGeometry"]
+    },
+
+    "environment_maps": {
+      "keywords": ["environment", "hdri", "skybox", "ibr", "reflection map", "cubemap", "equirectangular", "environment preset", "image based lighting"],
+      "threejs_docs": ["PMREMGenerator", "RoomEnvironment", "GroundedSkybox", "CubeCamera", "CubeRenderTarget", "ColorEnvironment", "DebugEnvironment"]
+    },
+
+    "glass_transmission": {
+      "keywords": ["glass", "transparent", "crystal", "see-through", "refraction", "transmission", "ice", "gem", "diamond", "frosted glass", "prism"],
+      "threejs_docs": ["MeshPhysicalMaterial", "MeshPhysicalNodeMaterial", "Refractor", "Reflector"]
+    },
+
+    "wireframe_outline": {
+      "keywords": ["wireframe", "edges", "outline", "schematic", "blueprint render", "technical drawing", "wireframe overlay", "line rendering"],
+      "threejs_docs": ["Wireframe", "WireframeGeometry2", "EdgesGeometry", "LineSegments", "Line2", "LineMaterial", "OutlinePass"]
+    },
+
+    "cursor_interaction": {
+      "keywords": ["cursor trail", "mouse follow", "pointer", "drag 3d", "mouse repel", "magnetic cursor", "interactive cursor", "mouse distortion"],
+      "threejs_docs": ["Raycaster", "DragControls", "TransformControls", "InteractiveGroup"]
+    },
+
+    "transition_effects": {
+      "keywords": ["page transition", "morph between", "scene change", "dissolve", "cross fade", "wipe transition", "portal transition"],
+      "threejs_docs": ["RenderPipeline", "PostProcessing", "GaussianBlurNode", "BloomNode"]
+    }
+  },
+
+  "drei_helpers": {
+    "description": "Top @react-three/drei helpers for building immersive 3D scenes in React Three Fiber. Import from '@react-three/drei'.",
+    "visual_components": {
+      "Float": {
+        "description": "Makes children float up and down with gentle rotation. Perfect for levitating objects.",
+        "props": "speed={number} rotationIntensity={number} floatIntensity={number} floatingRange={[min, max]}",
+        "usage": "<Float speed={2} rotationIntensity={0.5} floatIntensity={1}><mesh>...</mesh></Float>"
+      },
+      "MeshDistortMaterial": {
+        "description": "Organic, blob-like distortion material. Creates living, breathing surfaces.",
+        "props": "distort={number 0-1} speed={number} color={string} roughness={number} metalness={number}",
+        "usage": "<mesh><sphereGeometry args={[1, 64, 64]} /><MeshDistortMaterial distort={0.4} speed={2} color='#6366f1' roughness={0} metalness={0.8} /></mesh>"
+      },
+      "MeshWobbleMaterial": {
+        "description": "Wobbling, jelly-like material. Great for playful or organic elements.",
+        "props": "factor={number} speed={number} color={string}",
+        "usage": "<mesh><torusGeometry args={[1, 0.4, 32, 64]} /><MeshWobbleMaterial factor={0.6} speed={1.5} color='#22d3ee' /></mesh>"
+      },
+      "MeshReflectorMaterial": {
+        "description": "Reflective floor/ground plane material. Creates premium mirror-like surfaces.",
+        "props": "blur={[number, number]} resolution={number} mixBlur={number} mirror={number 0-1} minDepthThreshold={number} maxDepthThreshold={number} color={string} metalness={number} roughness={number}",
+        "usage": "<mesh rotation={[-Math.PI/2, 0, 0]} position={[0, -1, 0]}><planeGeometry args={[50, 50]} /><MeshReflectorMaterial blur={[300, 100]} resolution={1024} mixBlur={1} mirror={0.75} color='#050505' metalness={0.6} roughness={1} /></mesh>"
+      },
+      "Cloud": {
+        "description": "Volumetric cloud groups. Creates atmospheric, dreamy environments.",
+        "props": "opacity={number} speed={number} segments={number} bounds={[x, y, z]} volume={number} color={string}",
+        "usage": "<Cloud opacity={0.5} speed={0.4} segments={40} bounds={[6, 2, 2]} volume={6} color='#ffffff' />"
+      },
+      "Sparkles": {
+        "description": "Ambient floating sparkle particles. Adds magic and polish.",
+        "props": "count={number} size={number|Float32Array} speed={number} color={string} scale={number|[x,y,z]} noise={number|[x,y,z]}",
+        "usage": "<Sparkles count={200} size={2} speed={0.4} color='#00ffff' scale={[10, 10, 10]} noise={1} />"
+      },
+      "Stars": {
+        "description": "Starfield background. Creates deep space or night sky.",
+        "props": "radius={number} depth={number} count={number} factor={number} saturation={number} fade speed={number}",
+        "usage": "<Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />"
+      },
+      "Trail": {
+        "description": "Motion trail behind moving objects. Adds speed and energy.",
+        "props": "width={number} length={number} color={string|THREE.Color} attenuation={(w)=>number} decay={number}",
+        "usage": "<Trail width={2} length={8} color='#ff6b6b' attenuation={(t) => t * t}><mesh ref={movingRef}>...</mesh></Trail>"
+      },
+      "Sky": {
+        "description": "Procedural sky with configurable sun. Creates outdoor atmosphere.",
+        "props": "distance={number} sunPosition={[x,y,z]} inclination={number} azimuth={number} mieCoefficient={number} rayleigh={number}",
+        "usage": "<Sky distance={450000} sunPosition={[0, 1, 0]} inclination={0} azimuth={0.25} />"
+      },
+      "GradientTexture": {
+        "description": "Procedural gradient texture for materials. No external assets needed.",
+        "props": "stops={number[]} colors={string[]} size={number}",
+        "usage": "<meshBasicMaterial><GradientTexture stops={[0, 0.5, 1]} colors={['#e63946', '#457b9d', '#1d3557']} size={1024} /></meshBasicMaterial>"
+      }
+    },
+    "lighting_components": {
+      "Environment": {
+        "description": "Image-based lighting from presets or HDR files. Dramatically improves scene realism.",
+        "props": "preset={'apartment'|'city'|'dawn'|'forest'|'lobby'|'night'|'park'|'studio'|'sunset'|'warehouse'} background={boolean} blur={number}",
+        "usage": "<Environment preset='sunset' background blur={0.5} />"
+      },
+      "Lightformer": {
+        "description": "Custom shaped light inside Environment. Creates studio-quality lighting.",
+        "props": "intensity={number} color={string} form={'ring'|'rect'|'circle'} position={[x,y,z]} rotation={[x,y,z]} scale={number|[x,y,z]}",
+        "usage": "<Environment><Lightformer intensity={2} color='#ff6b6b' form='ring' position={[0, 5, -5]} scale={4} /></Environment>"
+      },
+      "ContactShadows": {
+        "description": "Soft contact shadows under objects. Grounds objects in the scene.",
+        "props": "opacity={number} blur={number} far={number} resolution={number} color={string} position={[x,y,z]}",
+        "usage": "<ContactShadows opacity={0.5} blur={2} far={4} resolution={256} color='#000000' position={[0, -1, 0]} />"
+      },
+      "AccumulativeShadows": {
+        "description": "Baked-quality soft shadows. Premium shadow quality for static scenes.",
+        "props": "frames={number} alphaTest={number} scale={number} position={[x,y,z]}",
+        "usage": "<AccumulativeShadows frames={60} alphaTest={0.85} scale={10} position={[0, -0.99, 0]}><RandomizedLight radius={10} ambient={0.5} position={[5, 5, -10]} /></AccumulativeShadows>"
+      }
+    },
+    "utility_components": {
+      "useScroll": {
+        "description": "Hook for scroll-driven animations inside ScrollControls. Returns offset, visible, range, curve, delta.",
+        "usage": "const scroll = useScroll(); // in useFrame: scroll.offset gives 0-1 normalized scroll position"
+      },
+      "Billboard": {
+        "description": "Auto-faces camera. Perfect for labels, icons, and 2D elements in 3D space.",
+        "props": "follow={boolean} lockX={boolean} lockY={boolean} lockZ={boolean}",
+        "usage": "<Billboard><mesh><planeGeometry args={[2, 2]} /><meshBasicMaterial color='cyan' /></mesh></Billboard>"
+      },
+      "AdaptiveDpr": {
+        "description": "Automatically adjusts pixel ratio based on performance.",
+        "props": "pixelated={boolean}",
+        "usage": "<AdaptiveDpr pixelated />"
+      },
+      "AdaptiveEvents": {
+        "description": "Automatically disables pointer events when not needed for performance.",
+        "usage": "<AdaptiveEvents />"
+      },
+      "BakeShadows": {
+        "description": "Bakes shadows once for static scenes. Major performance optimization.",
+        "usage": "<BakeShadows />"
+      },
+      "Preload": {
+        "description": "Preloads all assets before rendering. Ensures smooth first paint.",
+        "usage": "<Preload all />"
+      }
     }
   },
 
@@ -606,12 +737,18 @@
     "PerspectiveCamera",
     "Mesh",
     "MeshStandardMaterial",
+    "MeshPhysicalMaterial",
+    "MeshPhysicalNodeMaterial",
     "BoxGeometry",
     "SphereGeometry",
     "DirectionalLight",
     "AmbientLight",
+    "PointLight",
+    "SpotLight",
     "OrbitControls",
     "BufferGeometry",
+    "BufferAttribute",
+    "InstancedMesh",
     "Group",
     "Object3D",
     "Texture",
@@ -620,6 +757,14 @@
     "Vector3",
     "Color",
     "Raycaster",
-    "LoadingManager"
+    "LoadingManager",
+    "ShaderMaterial",
+    "Points",
+    "PointsMaterial",
+    "Fog",
+    "FogExp2",
+    "CatmullRomCurve3",
+    "PostProcessing",
+    "RenderPipeline"
   ]
 }
